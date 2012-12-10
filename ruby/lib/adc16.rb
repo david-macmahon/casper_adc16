@@ -136,35 +136,6 @@ class ADC16 < KATCP::RoachClient
     setreg(0x27, (bits&0xff) << 8)
   end
 
-  # For each channel given in +chans+ (one or more of :a, :b, :c, :d), a 64K
-  # NArray is returned.
-  def snap(*chans)
-    len = (Fixnum === chans[-1]) ? chans.pop : 1<<16
-    self.trig = 0
-    chans.each do |chan|
-      # snap_x_ctrl bit 0: 0-to-1 = enable 
-      # snap_x_ctrl bit 1: trigger (0=external, 1=immediate)
-      # snap_x_ctrl bit 2: write enable (0=external, 1=always)
-      # snap_x_ctrl bit 3: cirular capture (0=one-shot, 1=circular)
-      #
-      # Due to tcpborphserver3 bug, writes to the control registers must be
-      # done using the KATCP ?wordwrite command.  See the email thread at
-      # http://www.mail-archive.com/casper@lists.berkeley.edu/msg03457.html
-      request(:wordwrite, "snap_#{chan}_ctrl", 0, 0b0000);
-      request(:wordwrite, "snap_#{chan}_ctrl", 0, 0b0101);
-    end
-    self.trig = 1
-    sleep 0.01
-    self.trig = 0
-    chans.each do |chan|
-      request(:wordwrite, "snap_#{chan}_ctrl", 0, 0b0000);
-    end
-    out = chans.map do |chan|
-      send("snap_#{chan}_bram")[0,len]
-    end
-    chans.length == 1 ? out[0] : out
-  end
-
   # ======================================= #
   # ADC0 Control Register Bits              #
   # ======================================= #
@@ -251,6 +222,40 @@ class ADC16 < KATCP::RoachClient
     self
   end
 
+end # class ADC16
+
+# Class for communicating with snap and trig blocks of adc16_test model.
+class ADC16Test < ADC16
+
+  # For each channel given in +chans+ (one or more of :a, :b, :c, :d), a 64K
+  # NArray is returned.
+  def snap(*chans)
+    len = (Fixnum === chans[-1]) ? chans.pop : 1<<16
+    self.trig = 0
+    chans.each do |chan|
+      # snap_x_ctrl bit 0: 0-to-1 = enable
+      # snap_x_ctrl bit 1: trigger (0=external, 1=immediate)
+      # snap_x_ctrl bit 2: write enable (0=external, 1=always)
+      # snap_x_ctrl bit 3: cirular capture (0=one-shot, 1=circular)
+      #
+      # Due to tcpborphserver3 bug, writes to the control registers must be
+      # done using the KATCP ?wordwrite command.  See the email thread at
+      # http://www.mail-archive.com/casper@lists.berkeley.edu/msg03457.html
+      request(:wordwrite, "snap_#{chan}_ctrl", 0, 0b0000);
+      request(:wordwrite, "snap_#{chan}_ctrl", 0, 0b0101);
+    end
+    self.trig = 1
+    sleep 0.01
+    self.trig = 0
+    chans.each do |chan|
+      request(:wordwrite, "snap_#{chan}_ctrl", 0, 0b0000);
+    end
+    out = chans.map do |chan|
+      send("snap_#{chan}_bram")[0,len]
+    end
+    chans.length == 1 ? out[0] : out
+  end
+
   def walk_taps(chip)
     (0..31).map do |tap|
       delay_tap(chip, tap)
@@ -258,4 +263,4 @@ class ADC16 < KATCP::RoachClient
     end
   end
 
-end
+end # class ADC16Test
