@@ -81,7 +81,6 @@ class ADC16 < KATCP::RoachClient
     raise 'FPGA not programmed' unless programmed?
     adc_reset
     adc_power_cycle
-    data_format :msb # Until receive logic is changed to lsb first
     progdev self.opts[:bof] if self.opts[:bof]
   end
 
