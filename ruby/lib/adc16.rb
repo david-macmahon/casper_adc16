@@ -170,10 +170,10 @@ class ADC16 < KATCP::RoachClient
     val = adc16_controller[1] & PHASE_MASK
     chips.each do |c|
       val |= case c
-            when 0, :a; ADC_A_BITSLIP
-            when 1, :b; ADC_B_BITSLIP
-            when 2, :c; ADC_C_BITSLIP
-            when 3, :d; ADC_D_BITSLIP
+            when 0, :a, 'a', 'A'; ADC_A_BITSLIP
+            when 1, :b, 'b', 'B'; ADC_B_BITSLIP
+            when 2, :c, 'c', 'C'; ADC_C_BITSLIP
+            when 3, :d, 'd', 'D'; ADC_D_BITSLIP
             end
     end
     adc16_controller[1] = 0
@@ -188,10 +188,10 @@ class ADC16 < KATCP::RoachClient
     adc16_controller[1] = val
     # Toggle chip specific phase bits
     case chip
-    when :a, 0; val ^= ADC_A_PHASE
-    when :b, 1; val ^= ADC_B_PHASE
-    when :c, 2; val ^= ADC_C_PHASE
-    when :d, 3; val ^= ADC_D_PHASE
+    when 0, :a, 'a', 'A'; val ^= ADC_A_PHASE
+    when 1, :b, 'b', 'B'; val ^= ADC_B_PHASE
+    when 2, :c, 'c', 'C'; val ^= ADC_C_PHASE
+    when 3, :d, 'd', 'D'; val ^= ADC_D_PHASE
     else raise "Invalid chip: #{chip}"
     end
     # Write new value
@@ -210,10 +210,10 @@ class ADC16 < KATCP::RoachClient
     adc16_controller[1] = val
     # Set chip specific reset bits for the four channels
     case chip
-    when :a, 0; val |= (chans&0xf) << 16
-    when :b, 1; val |= (chans&0xf) << 20
-    when :c, 2; val |= (chans&0xf) << 24
-    when :d, 3; val |= (chans&0xf) << 28
+    when 0, :a, 'a', 'A'; val |= (chans&0xf) << 16
+    when 1, :b, 'b', 'B'; val |= (chans&0xf) << 20
+    when 2, :c, 'c', 'C'; val |= (chans&0xf) << 24
+    when 3, :d, 'd', 'D'; val |= (chans&0xf) << 28
     else raise "Invalid chip: #{chip}"
     end
     # Write value with reset bits on
@@ -243,17 +243,17 @@ class ADC16Test < ADC16
       # Due to tcpborphserver3 bug, writes to the control registers must be
       # done using the KATCP ?wordwrite command.  See the email thread at
       # http://www.mail-archive.com/casper@lists.berkeley.edu/msg03457.html
-      request(:wordwrite, "snap_#{chip}_ctrl", 0, 0b0000);
-      request(:wordwrite, "snap_#{chip}_ctrl", 0, 0b0101);
+      request(:wordwrite, "snap_#{chip.to_s.downcase}_ctrl", 0, 0b0000);
+      request(:wordwrite, "snap_#{chip.to_s.downcase}_ctrl", 0, 0b0101);
     end
     self.trig = 1
     sleep 0.01
     self.trig = 0
     chips.each do |chip|
-      request(:wordwrite, "snap_#{chip}_ctrl", 0, 0b0000);
+      request(:wordwrite, "snap_#{chip.to_s.downcase}_ctrl", 0, 0b0000);
     end
     out = chips.map do |chip|
-      send("snap_#{chip}_bram")[0,len]
+      send("snap_#{chip.to_s.downcase}_bram")[0,len]
     end
     chips.length == 1 ? out[0] : out
   end
