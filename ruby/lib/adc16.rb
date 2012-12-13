@@ -84,13 +84,13 @@ class ADC16 < KATCP::RoachClient
     progdev self.opts[:bof] if self.opts[:bof]
   end
 
-  # Set output data endian-ness and binary format.
-  # If +endian+ is :msb, then output msb first (else lsb first).
-  # If +binary+ is :comp2s, then use 2's complement (else straight offset binary).
-  def data_format(endian=:lsb, binary=:offset)
+  # Set output data endian-ness and binary format.  If +msb_invert+ is true,
+  # then invert msb (i.e. output 2's complement (else straight offset binary).
+  # If +msb_first+ is true, then output msb first (else lsb first).
+  def data_format(invert_msb=false, msb_first=false)
     val = 0x0000
-    val |= (endian == :msb) ? 8 : 0
-    val |= (binary == :comp2s) ? 4 : 0
+    val |= invert_msb ? 4 : 0
+    val |= msb_first ? 8 : 0
     setreg(0x46, val)
   end
 
