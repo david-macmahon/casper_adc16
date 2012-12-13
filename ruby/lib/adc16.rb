@@ -205,6 +205,9 @@ class ADC16 < KATCP::RoachClient
     adc16_controller[1] = val
     # Set tap bits
     val |= (tap&0x1f) << TAP_SHIFT
+    # Write value with reset bits off
+    # (avoids unconstrained path race condition)
+    adc16_controller[1] = val
     # Set chip specific reset bits for the four channels
     case chip
     when :a, 0; val |= (chans&0xf) << 16
@@ -213,7 +216,7 @@ class ADC16 < KATCP::RoachClient
     when :d, 3; val |= (chans&0xf) << 28
     else raise "Invalid chip: #{chip}"
     end
-    # Write value
+    # Write value with reset bits on
     adc16_controller[1] = val
     # Clear all but "load phase set" bits
     adc16_controller[1] = val & PHASE_MASK
