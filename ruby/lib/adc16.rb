@@ -258,10 +258,10 @@ class ADC16Test < ADC16
     chips.length == 1 ? out[0] : out
   end
 
-  def walk_taps(chip, expected=0x2aaa_aaaa-0x8000_0000)
+  def walk_taps(chip, chan, lane, expected=0x2a)
     (0..31).map do |tap|
       delay_tap(chip, tap)
-      d=snap(chip)
+      d=snap(chip)/(1<<(chan&3)) & 0xff
       d.ne(expected).where.length
     end
   end
