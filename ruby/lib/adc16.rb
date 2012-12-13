@@ -273,4 +273,30 @@ class ADC16Test < ADC16
     [good_taps, counts]
   end
 
+  def plot_all(device='/xs')
+    Plotter.new(:device=>device, :nx=>4, :ny=>4)
+    ['A', 'B', 'C', 'D'].each do |chip|
+      4.times do |chan|
+        title2 = "ADC #{chip} chan #{chan}"
+        good, counts = walk_taps(chip, chan)
+        plot_counts(counts, :title2 => title2)
+      end
+    end
+  end # plot_all
+
 end # class ADC16Test
+
+def plot_counts(counts, plotopts={})
+  plotopts = {
+    :line => :none,
+    :marker => Marker::STAR,
+    :title => 'Error Counts vs Delay Tap',
+    :ylabel => 'log2(err_count+1)',
+    :xlabel => 'Delay Tap Value'
+  }.merge!(plotopts)
+  logcounts=log2(NArray[*counts].to_f+1)
+  plotopts[:overlay] = false
+  plot(logcounts[0,nil], plotopts)
+  plotopts[:overlay] = true
+  plot(logcounts[1,nil], plotopts)
+end
