@@ -165,10 +165,10 @@ class ADC16 < KATCP::RoachClient
   ADC_D_PHASE = 0x40
   PHASE_MASK  =  ADC_A_PHASE | ADC_B_PHASE | ADC_C_PHASE |ADC_D_PHASE
 
-  def bitslip(*chans)
+  def bitslip(*chips)
     # Preserve "load phase set" bits
     val = adc16_controller[1] & PHASE_MASK
-    chans.each do |c|
+    chips.each do |c|
       val |= case c
             when 0, :a; ADC_A_BITSLIP
             when 1, :b; ADC_B_BITSLIP
@@ -229,12 +229,12 @@ end # class ADC16
 # Class for communicating with snap and trig blocks of adc16_test model.
 class ADC16Test < ADC16
 
-  # For each channel given in +chans+ (one or more of :a, :b, :c, :d), a 64K
+  # For each chip given in +chips+ (one or more of :a, :b, :c, :d), a 64K
   # NArray is returned.
-  def snap(*chans)
-    len = (Fixnum === chans[-1]) ? chans.pop : 1<<16
+  def snap(*chips)
+    len = (Fixnum === chips[-1]) ? chips.pop : 1<<16
     self.trig = 0
-    chans.each do |chan|
+    chips.each do |chip|
       # snap_x_ctrl bit 0: 0-to-1 = enable
       # snap_x_ctrl bit 1: trigger (0=external, 1=immediate)
       # snap_x_ctrl bit 2: write enable (0=external, 1=always)
@@ -243,19 +243,19 @@ class ADC16Test < ADC16
       # Due to tcpborphserver3 bug, writes to the control registers must be
       # done using the KATCP ?wordwrite command.  See the email thread at
       # http://www.mail-archive.com/casper@lists.berkeley.edu/msg03457.html
-      request(:wordwrite, "snap_#{chan}_ctrl", 0, 0b0000);
-      request(:wordwrite, "snap_#{chan}_ctrl", 0, 0b0101);
+      request(:wordwrite, "snap_#{chip}_ctrl", 0, 0b0000);
+      request(:wordwrite, "snap_#{chip}_ctrl", 0, 0b0101);
     end
     self.trig = 1
     sleep 0.01
     self.trig = 0
-    chans.each do |chan|
-      request(:wordwrite, "snap_#{chan}_ctrl", 0, 0b0000);
+    chips.each do |chip|
+      request(:wordwrite, "snap_#{chip}_ctrl", 0, 0b0000);
     end
-    out = chans.map do |chan|
-      send("snap_#{chan}_bram")[0,len]
+    out = chips.map do |chip|
+      send("snap_#{chip}_bram")[0,len]
     end
-    chans.length == 1 ? out[0] : out
+    chips.length == 1 ? out[0] : out
   end
 
   def walk_taps(chip, expected=0x2aaa_aaaa-0x8000_0000)
