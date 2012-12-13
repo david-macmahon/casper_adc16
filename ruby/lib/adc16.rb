@@ -258,12 +258,19 @@ class ADC16Test < ADC16
     chips.length == 1 ? out[0] : out
   end
 
-  def walk_taps(chip, chan, lane, expected=0x2a)
-    (0..31).map do |tap|
+  def walk_taps(chip, chan, expected=0x2a)
+    counts = []
+    good_taps = (0..31).find_all do |tap|
       delay_tap(chip, tap)
-      d=snap(chip)/(1<<(chan&3)) & 0xff
-      d.ne(expected).where.length
+      # Get snap data and convert to matrix of bytes
+      d = snap(chip).hton.to_type_as_binary(NArray::BYTE).reshape(8,true)
+      counts << [
+        d[chan  , nil].ne(expected).where.length, # "even" samples
+        d[chan+4, nil].ne(expected).where.length  # "odd"  samples
+      ]
+      counts[-1] == [0,0] # Good when both even and odd errors are 0
     end
+    [good_taps, counts]
   end
 
 end # class ADC16Test
