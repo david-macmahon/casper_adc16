@@ -277,10 +277,16 @@ class ADC16Test < ADC16
     [good_taps, counts]
   end
 
-  def plot_all(device='/xs')
-    plot=Plotter.new(:device=>device, :nx=>4, :ny=>4)
+  def plot_all(opts={})
+    opts = {
+      :expected => 0x2a,
+      :device => '/xs',
+      :nx => 4,
+      :ny => 4
+    }.merge!(opts)
+    plot=Plotter.new(opts)
     ['A', 'B', 'C', 'D'].each do |chip|
-      good, counts = walk_taps(chip)
+      good, counts = walk_taps(chip, opts[:expected])
       4.times do |chan|
         title2 = "ADC #{chip} chan #{chan}"
         plot_counts(counts[chan], :title2 => title2)
