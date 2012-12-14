@@ -296,6 +296,15 @@ class ADC16Test < ADC16
         good_taps[chan] << tap if chan_counts == [0,0] # Good when both even and odd errors are 0
       end
     end
+
+    # Set delay taps to middle of the good range
+    4.times do |chan|
+      good_chan_taps = good_taps[chan]
+      best_chan_tap = good_chan_taps[good_chan_taps.length/2]
+      next if best_chan_tap.nil?  # TODO Warn or raise exception?
+      delay_tap(chip, best_chan_tap, 1<<chan)
+    end
+
     [good_taps, counts]
   end
 
