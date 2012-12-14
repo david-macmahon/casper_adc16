@@ -258,17 +258,21 @@ class ADC16Test < ADC16
     chips.length == 1 ? out[0] : out
   end
 
-  def walk_taps(chip, chan, expected=0x2a)
-    counts = []
-    good_taps = (0..31).find_all do |tap|
+  def walk_taps(chip, expected=0x2a)
+    good_taps = [[], [], [], []]
+    counts = [[], [], [], []]
+    (0..31).each do |tap|
       delay_tap(chip, tap)
       # Get snap data and convert to matrix of bytes
       d = snap(chip).hton.to_type_as_binary(NArray::BYTE).reshape(8,true)
-      counts << [
-        d[chan  , nil].ne(expected).where.length, # "even" samples
-        d[chan+4, nil].ne(expected).where.length  # "odd"  samples
-      ]
-      counts[-1] == [0,0] # Good when both even and odd errors are 0
+      4.times do |chan|
+        chan_counts = [
+          d[chan  , nil].ne(expected).where.length, # "even" samples
+          d[chan+4, nil].ne(expected).where.length  # "odd"  samples
+        ]
+        counts[chan] << chan_counts
+        good_taps[chan] << tap if chan_counts == [0,0] # Good when both even and odd errors are 0
+      end
     end
     [good_taps, counts]
   end
@@ -276,10 +280,10 @@ class ADC16Test < ADC16
   def plot_all(device='/xs')
     plot=Plotter.new(:device=>device, :nx=>4, :ny=>4)
     ['A', 'B', 'C', 'D'].each do |chip|
+      good, counts = walk_taps(chip)
       4.times do |chan|
         title2 = "ADC #{chip} chan #{chan}"
-        good, counts = walk_taps(chip, chan)
-        plot_counts(counts, :title2 => title2)
+        plot_counts(counts[chan], :title2 => title2)
       end
     end
     plot.close
