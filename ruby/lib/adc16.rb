@@ -208,7 +208,7 @@ class ADC16 < KATCP::RoachClient
     # Write value with reset bits off
     # (avoids unconstrained path race condition)
     adc16_controller[1] = val
-    # Set chip specific reset bits for the four channels
+    # Set chip specific reset bits for the requested channels
     case chip
     when 0, :a, 'a', 'A'; val |= (chans&0xf) << 16
     when 1, :b, 'b', 'B'; val |= (chans&0xf) << 20
