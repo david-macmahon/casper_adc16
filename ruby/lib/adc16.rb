@@ -274,7 +274,7 @@ class ADC16Test < ADC16
   end
 
   def plot_all(device='/xs')
-    Plotter.new(:device=>device, :nx=>4, :ny=>4)
+    plot=Plotter.new(:device=>device, :nx=>4, :ny=>4)
     ['A', 'B', 'C', 'D'].each do |chip|
       4.times do |chan|
         title2 = "ADC #{chip} chan #{chan}"
@@ -282,6 +282,8 @@ class ADC16Test < ADC16
         plot_counts(counts, :title2 => title2)
       end
     end
+    plot.close
+    self
   end # plot_all
 
 end # class ADC16Test
