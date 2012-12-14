@@ -199,7 +199,14 @@ class ADC16 < KATCP::RoachClient
     self
   end
 
+  # Sets the delay tap for ADC +chip+ to +tap+ for channels specified in
+  # +chans+ bitmask.  Bit 0 of +chans+ (i.e. 0x1, the least significant bit) is
+  # channel 0, bit 1 (i.e. 0x2) is channel 1, etc.  A +chans+ value of 10
+  # (0b1010) would set the delay taps for channels 1 and 3 of ADC +chip+.
   def delay_tap(chip, tap, chans=0b1111)
+    # Current gateware treats +chans+ in a bit-reversed way relative to the
+    # above documentation, so for now the code bit-reveres the lower four bits.
+    chans = ((chans&1)<<3) | ((chans&2)<<1) | ((chans&4)>>1) | ((chans&8)>>3)
     # Clear all but "load phase set" bits
     val = adc16_controller[1] & PHASE_MASK
     adc16_controller[1] = val
