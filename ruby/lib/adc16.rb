@@ -143,7 +143,6 @@ class ADC16 < KATCP::RoachClient
   # D = Delay RST                           #
   # T = Delay Tap                           #
   # B = ISERDES Bit Slip                    #
-  # P = Load Phase Set                      #
   # R = Reset                               #
   # ======================================= #
   # |<-- MSb                       LSb -->| #
@@ -152,7 +151,6 @@ class ADC16 < KATCP::RoachClient
   # DDDD DDDD DDDD DDDD ---- ---- ---- ---- #
   # ---- ---- ---- ---- TTTT T--- ---- ---- #
   # ---- ---- ---- ---- ---- -BBB B--- ---- #
-  # ---- ---- ---- ---- ---- ---- -PPP P--- #
   # ---- ---- ---- ---- ---- ---- ---- -R-- #
   # ======================================= #
 
@@ -161,15 +159,9 @@ class ADC16 < KATCP::RoachClient
   ADC_B_BITSLIP = 0x100
   ADC_C_BITSLIP = 0x200
   ADC_D_BITSLIP = 0x400
-  ADC_A_PHASE = 0x08
-  ADC_B_PHASE = 0x10
-  ADC_C_PHASE = 0x20
-  ADC_D_PHASE = 0x40
-  PHASE_MASK  =  ADC_A_PHASE | ADC_B_PHASE | ADC_C_PHASE |ADC_D_PHASE
 
   def bitslip(*chips)
-    # Preserve "load phase set" bits
-    val = adc16_controller[1] & PHASE_MASK
+    val = 0
     chips.each do |c|
       val |= case c
             when 0, :a, 'a', 'A'; ADC_A_BITSLIP
@@ -181,23 +173,7 @@ class ADC16 < KATCP::RoachClient
     adc16_controller[1] = 0
     adc16_controller[1] = val
     adc16_controller[1] = 0
-    self
-  end
 
-  def toggle_phase(chip)
-    # Clear all but "load phase set" bits
-    val = adc16_controller[1] & PHASE_MASK
-    adc16_controller[1] = val
-    # Toggle chip specific phase bits
-    case chip
-    when 0, :a, 'a', 'A'; val ^= ADC_A_PHASE
-    when 1, :b, 'b', 'B'; val ^= ADC_B_PHASE
-    when 2, :c, 'c', 'C'; val ^= ADC_C_PHASE
-    when 3, :d, 'd', 'D'; val ^= ADC_D_PHASE
-    else raise "Invalid chip: #{chip}"
-    end
-    # Write new value
-    adc16_controller[1] = val
     self
   end
 
@@ -209,11 +185,8 @@ class ADC16 < KATCP::RoachClient
     # Current gateware treats +chans+ in a bit-reversed way relative to the
     # above documentation, so for now the code bit-reveres the lower four bits.
     chans = ((chans&1)<<3) | ((chans&2)<<1) | ((chans&4)>>1) | ((chans&8)>>3)
-    # Clear all but "load phase set" bits
-    val = adc16_controller[1] & PHASE_MASK
-    adc16_controller[1] = val
     # Set tap bits
-    val |= (tap&0x1f) << TAP_SHIFT
+    val = (tap&0x1f) << TAP_SHIFT
     # Write value with reset bits off
     # (avoids unconstrained path race condition)
     adc16_controller[1] = val
@@ -227,9 +200,9 @@ class ADC16 < KATCP::RoachClient
     end
     # Write value with reset bits on
     adc16_controller[1] = val
-    # Clear all but "load phase set" bits
-    adc16_controller[1] = val & PHASE_MASK
-    sleep 0.1
+    # Clear all bits
+    adc16_controller[1] = 0
+
     self
   end
 
