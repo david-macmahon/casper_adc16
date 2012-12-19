@@ -206,6 +206,39 @@ class ADC16 < KATCP::RoachClient
     self
   end
 
+  # For each chip given in +chips+ (one or more of :a to :d, 0 to 3, 'a' to
+  # 'd', or 'A' to 'D'), an NArray is returned.  By default, the NArray has
+  # 1024 elements (i.e. the complete snapshot buffer), but a trailing Hash
+  # argument can specify a shorter length to snap via the :n key.
+  def snap(*chips)
+    # A trailing Hash argument can be passed for options
+    opts = (Hash === chips[-1]) ? chips.pop : {}
+    len = opts[:n] || (1<<10)
+    len =    1 if len <    1
+    len = 1024 if len > 1024
+
+    # Convert chips to integers
+    chips.map! do |chip|
+      case chip
+      when 0, :a, 'a', 'A'; 0
+      when 1, :b, 'b', 'B'; 1
+      when 2, :c, 'c', 'C'; 2
+      when 3, :d, 'd', 'D'; 3
+      else raise "Invalid chip: #{chip}"
+      end
+    end
+
+    adc16_controller[1] = 0
+    adc16_controller[1] = 1
+    adc16_controller[1] = 0
+
+    out = chips.map do |chip|
+      adc16_controller[1024*chip+1024,len]
+    end
+
+    chips.length == 1 ? out[0] : out
+  end
+
 end # class ADC16
 
 # Class for communicating with snap and trig blocks of adc16_test model.
@@ -214,7 +247,7 @@ class ADC16Test < ADC16
   # For each chip given in +chips+ (one or more of :a to :d, 0 to 3, 'a' to
   # 'd', or 'A' to 'D'), a 64K NArray is returned.  A trailing Hash argument
   # can specify the leth to snap via the :n key.
-  def snap(*chips)
+  def snap_test(*chips)
     # A trailing Hash argument can be passed for options
     opts = (Hash === chips[-1]) ? chips.pop : {}
     len = opts[:n] || (1<<16)
