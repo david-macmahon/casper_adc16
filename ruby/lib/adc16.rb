@@ -267,21 +267,21 @@ class ADC16 < KATCP::RoachClient
     [good_taps, counts]
   end
 
-  def calibrate
+  def calibrate(deskew_expected=0x2a, sync_expected=0x70)
     # Set deskew pattern
     deskew_pattern
-    4.times {|chip| walk_taps(chip)}
+    4.times {|chip| walk_taps(chip, deskew_expected)}
     # Set sync pattern
     sync_pattern
     # Bit slip each ADC
     status = (0..3).map do |chip|
       8.times do
-        # Done if byte value is 0x70
-        break if snap(chip, :n=>1) & 0xff == 0x70
+        # Done if byte value matches sync_expected
+        break if snap(chip, :n=>1) & 0xff == sync_expected
         bitslip(chip)
       end
-      # Verify current value
-      snap(chip, :n=>1) & 0xff == 0x70
+      # Verify sucessful sync-up
+      snap(chip, :n=>1) & 0xff == sync_expected
     end
   end
 
