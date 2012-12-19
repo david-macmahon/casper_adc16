@@ -288,7 +288,7 @@ class ADC16Test < ADC16
     (0..31).each do |tap|
       delay_tap(chip, tap)
       # Get snap data and convert to matrix of bytes
-      d = snap(chip).hton.to_type_as_binary(NArray::BYTE).reshape(8,true)
+      d = snap(chip, :n=>1024).hton.to_type_as_binary(NArray::BYTE).reshape(8,true)
       4.times do |chan|
         chan_counts = [
           d[chan  , nil].ne(expected).where.length, # "even" samples
