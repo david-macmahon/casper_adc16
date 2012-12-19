@@ -242,6 +242,7 @@ class ADC16 < KATCP::RoachClient
   def walk_taps(chip, expected=0x2a)
     good_taps = [[], [], [], []]
     counts = [[], [], [], []]
+
     (0..31).each do |tap|
       delay_tap(chip, tap)
       # Get snap data and convert to matrix of bytes
@@ -259,6 +260,13 @@ class ADC16 < KATCP::RoachClient
     # Set delay taps to middle of the good range
     4.times do |chan|
       good_chan_taps = good_taps[chan]
+      # Handle case where good tap values wrap around from 31 to 0
+      if good_chan_taps.max - good_chan_taps.min > 16
+        low = good_chan_taps.find_all {|t| t < 16}
+        hi  = good_chan_taps.find_all {|t| t > 15}
+        low.map! {|t| t + 32}
+        good_chan_taps = hi + low
+      end
       best_chan_tap = good_chan_taps[good_chan_taps.length/2]
       next if best_chan_tap.nil?  # TODO Warn or raise exception?
       delay_tap(chip, best_chan_tap, 1<<chan)
