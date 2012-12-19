@@ -1,5 +1,7 @@
 require 'rubygems'
 require 'katcp'
+require 'pgplot/plotter'
+include Pgplot
 
 class ADC16 < KATCP::RoachClient
   DEVICE_TYPEMAP = {
