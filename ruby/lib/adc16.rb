@@ -310,6 +310,24 @@ class ADC16Test < ADC16
     [good_taps, counts]
   end
 
+  def calibrate
+    # Set deskew pattern
+    deskew_pattern
+    4.times {|chip| walk_taps(chip)}
+    # Set sync pattern
+    sync_pattern
+    # Bit slip each ADC
+    status = (0..3).map do |chip|
+      8.times do
+        # Done if byte value is 0x70
+        break if snap(chip, :n=>1) & 0xff == 0x70
+        bitslip(chip)
+      end
+      # Verify current value
+      snap(chip, :n=>1) & 0xff == 0x70
+    end
+  end
+
   def plot_all(opts={})
     opts = {
       :expected => 0x2a,
