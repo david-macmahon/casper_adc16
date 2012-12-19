@@ -239,6 +239,52 @@ class ADC16 < KATCP::RoachClient
     chips.length == 1 ? out[0] : out
   end
 
+  def walk_taps(chip, expected=0x2a)
+    good_taps = [[], [], [], []]
+    counts = [[], [], [], []]
+    (0..31).each do |tap|
+      delay_tap(chip, tap)
+      # Get snap data and convert to matrix of bytes
+      d = snap(chip, :n=>1024).hton.to_type_as_binary(NArray::BYTE).reshape(8,true)
+      4.times do |chan|
+        chan_counts = [
+          d[chan  , nil].ne(expected).where.length, # "even" samples
+          d[chan+4, nil].ne(expected).where.length  # "odd"  samples
+        ]
+        counts[chan] << chan_counts
+        good_taps[chan] << tap if chan_counts == [0,0] # Good when both even and odd errors are 0
+      end
+    end
+
+    # Set delay taps to middle of the good range
+    4.times do |chan|
+      good_chan_taps = good_taps[chan]
+      best_chan_tap = good_chan_taps[good_chan_taps.length/2]
+      next if best_chan_tap.nil?  # TODO Warn or raise exception?
+      delay_tap(chip, best_chan_tap, 1<<chan)
+    end
+
+    [good_taps, counts]
+  end
+
+  def calibrate
+    # Set deskew pattern
+    deskew_pattern
+    4.times {|chip| walk_taps(chip)}
+    # Set sync pattern
+    sync_pattern
+    # Bit slip each ADC
+    status = (0..3).map do |chip|
+      8.times do
+        # Done if byte value is 0x70
+        break if snap(chip, :n=>1) & 0xff == 0x70
+        bitslip(chip)
+      end
+      # Verify current value
+      snap(chip, :n=>1) & 0xff == 0x70
+    end
+  end
+
 end # class ADC16
 
 # Class for communicating with snap and trig blocks of adc16_test model.
@@ -286,52 +332,6 @@ class ADC16Test < ADC16
       send("snap_#{chip}_bram")[0,len]
     end
     chips.length == 1 ? out[0] : out
-  end
-
-  def walk_taps(chip, expected=0x2a)
-    good_taps = [[], [], [], []]
-    counts = [[], [], [], []]
-    (0..31).each do |tap|
-      delay_tap(chip, tap)
-      # Get snap data and convert to matrix of bytes
-      d = snap(chip, :n=>1024).hton.to_type_as_binary(NArray::BYTE).reshape(8,true)
-      4.times do |chan|
-        chan_counts = [
-          d[chan  , nil].ne(expected).where.length, # "even" samples
-          d[chan+4, nil].ne(expected).where.length  # "odd"  samples
-        ]
-        counts[chan] << chan_counts
-        good_taps[chan] << tap if chan_counts == [0,0] # Good when both even and odd errors are 0
-      end
-    end
-
-    # Set delay taps to middle of the good range
-    4.times do |chan|
-      good_chan_taps = good_taps[chan]
-      best_chan_tap = good_chan_taps[good_chan_taps.length/2]
-      next if best_chan_tap.nil?  # TODO Warn or raise exception?
-      delay_tap(chip, best_chan_tap, 1<<chan)
-    end
-
-    [good_taps, counts]
-  end
-
-  def calibrate
-    # Set deskew pattern
-    deskew_pattern
-    4.times {|chip| walk_taps(chip)}
-    # Set sync pattern
-    sync_pattern
-    # Bit slip each ADC
-    status = (0..3).map do |chip|
-      8.times do
-        # Done if byte value is 0x70
-        break if snap(chip, :n=>1) & 0xff == 0x70
-        bitslip(chip)
-      end
-      # Verify current value
-      snap(chip, :n=>1) & 0xff == 0x70
-    end
   end
 
   def plot_all(opts={})
