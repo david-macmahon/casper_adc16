@@ -275,6 +275,7 @@ class ADC16 < KATCP::RoachClient
     # Set delay taps to middle of the good range
     4.times do |chan|
       good_chan_taps = good_taps[chan]
+      next if good_chan_taps.empty? # uh-oh...
       # Handle case where good tap values wrap around from 31 to 0
       if good_chan_taps.max - good_chan_taps.min > 16
         low = good_chan_taps.find_all {|t| t < 16}
