@@ -37,7 +37,7 @@ plot=Plotter.new(opts)
 ['A', 'B', 'C', 'D'].each do |chip|
   good, counts = a.walk_taps(chip, opts[:expected])
   4.times do |chan|
-    title2 = "ADC #{chip} chan #{chan}"
+    title2 = "ADC Channel #{chip}#{chan+1}"
     plot_counts(counts[chan], :title2 => title2)
   end
 end

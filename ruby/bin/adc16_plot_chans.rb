@@ -27,7 +27,7 @@ data.each_with_index do |chip_data, chip_idx|
   4.times do |chan|
     plot(chip_data[chan,nil],
          :line => :stairs,
-         :title => "ADC #{CHIPS[chip_idx]} chan #{chan}",
+         :title => "ADC Channel #{CHIPS[chip_idx]}#{chan+1}",
          :ylabel => 'ADC Sample Value',
          :xlabel => 'Sample Number'
         )
