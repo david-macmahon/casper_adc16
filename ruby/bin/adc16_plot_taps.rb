@@ -8,7 +8,6 @@ include Pgplot
 
 # TODO Get these from command line
 opts = {
-  :expected => 0x2a,
   :device => ENV['PGPLOT_DEV'] || '/xs',
   :nx => 4,
   :ny => 4
@@ -35,12 +34,14 @@ end
 
 plot=Plotter.new(opts)
 
+a.deskew_pattern
 ['A', 'B', 'C', 'D'].each do |chip|
-  good, counts = a.walk_taps(chip, opts[:expected])
+  good, counts = a.walk_taps(chip)
   4.times do |chan|
     title2 = "ADC Channel #{chip}#{chan+1}"
     plot_counts(counts[chan], :title2 => title2)
   end
 end
+a.no_pattern
 
 plot.close
