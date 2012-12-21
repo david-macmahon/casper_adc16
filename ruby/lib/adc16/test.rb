@@ -19,8 +19,9 @@ class ADC16Test < ADC16
   end
 
   # For each chip given in +chips+ (one or more of :a to :d, 0 to 3, 'a' to
-  # 'd', or 'A' to 'D'), a 64K NArray is returned.  A trailing Hash argument
-  # can specify the leth to snap via the :n key.
+  # 'd', or 'A' to 'D'), an NArray is returned.  By default, the NArry has
+  # 4x64K elements (i.e the complete snapshot buffer), but a trailing Hash
+  # argument can specify the leth to snap via the :n key.
   def snap_test(*chips)
     # A trailing Hash argument can be passed for options
     opts = (Hash === chips[-1]) ? chips.pop : {}
@@ -57,8 +58,23 @@ class ADC16Test < ADC16
       request(:wordwrite, "snap_#{chip}_ctrl", 0, 0b0000);
     end
     out = chips.map do |chip|
-      send("snap_#{chip}_bram")[0,len]
+      # Do snap
+      d = send("snap_#{chip}_bram")[0,len]
+      # Convert to NArray if len == 1
+      if len == 1
+        d -= (1<<32) if d >= (1<<31)
+        d=NArray[d]
+      end
+      # Convert to bytes
+      d = d.hton.to_type_as_binary(NArray::BYTE)
+      # Reshape to 4-by-len matrix
+      d.reshape!(4, true)
+      # Convert to integers
+      d = d.to_type(NArray::INT)
+      # Convert to signed numbers
+      d.add!(128).mod!(256).sbt!(128)
     end
+
     chips.length == 1 ? out[0] : out
   end
 
