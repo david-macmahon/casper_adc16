@@ -5,11 +5,7 @@ include Pgplot
 
 class ADC16 < KATCP::RoachClient
   DEVICE_TYPEMAP = {
-    :adc16_controller => :bram,
-    :snap_a_bram => :bram,
-    :snap_b_bram => :bram,
-    :snap_c_bram => :bram,
-    :snap_d_bram => :bram
+    :adc16_controller => :bram
   }
 
   def device_typemap
@@ -297,6 +293,21 @@ end # class ADC16
 
 # Class for communicating with snap and trig blocks of adc16_test model.
 class ADC16Test < ADC16
+
+  DEVICE_TYPEMAP = {
+    :snap_a_bram   => :bram,
+    :snap_b_bram   => :bram,
+    :snap_c_bram   => :bram,
+    :snap_d_bram   => :bram,
+    :snap_a_status => :roreg,
+    :snap_b_status => :roreg,
+    :snap_c_status => :roreg,
+    :snap_d_status => :roreg
+  }
+
+  def device_typemap
+    super.merge!(DEVICE_TYPEMAP)
+  end
 
   # For each chip given in +chips+ (one or more of :a to :d, 0 to 3, 'a' to
   # 'd', or 'A' to 'D'), a 64K NArray is returned.  A trailing Hash argument
