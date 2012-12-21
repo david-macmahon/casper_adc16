@@ -20,12 +20,14 @@ a = ADC16.new(ARGV[0])
 
 plot=Plotter.new(opts)
 
-['A', 'B', 'C', 'D'].each do |chip|
-  data =a.snap(chip, :n => opts[:nsamps])
+CHIPS = ['A', 'B', 'C', 'D']
+
+data = a.snap(:a, :b, :c, :d, :n => opts[:nsamps])
+data.each_with_index do |chip_data, chip_idx|
   4.times do |chan|
-    plot(data[chan,nil],
+    plot(chip_data[chan,nil],
          :line => :stairs,
-         :title => "ADC #{chip} chan #{chan}",
+         :title => "ADC #{CHIPS[chip_idx]} chan #{chan}",
          :ylabel => 'ADC Sample Value',
          :xlabel => 'Sample Number'
         )
