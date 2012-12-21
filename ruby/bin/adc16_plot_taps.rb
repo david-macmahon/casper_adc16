@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'rubygems'
+require 'narray'
 require 'adc16'
 require 'pgplot/plotter'
 include Pgplot
@@ -25,7 +26,7 @@ def plot_counts(counts, plotopts={})
     :ylabel => 'log2(err_count+1)',
     :xlabel => 'Delay Tap Value'
   }.merge!(plotopts)
-  logcounts=log2(NArray[*counts].to_f+1)
+  logcounts=NMath.log2(NArray[*counts].to_f+1)
   plotopts[:overlay] = false
   plot(logcounts[0,nil], plotopts)
   plotopts[:overlay] = true
