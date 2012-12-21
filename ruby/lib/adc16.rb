@@ -204,7 +204,7 @@ class ADC16 < KATCP::RoachClient
 
   # For each chip given in +chips+ (one or more of :a to :d, 0 to 3, 'a' to
   # 'd', or 'A' to 'D'), an NArray is returned.  By default, the NArray has
-  # 1024 elements (i.e. the complete snapshot buffer), but a trailing Hash
+  # 4x1024 elements (i.e. the complete snapshot buffer), but a trailing Hash
   # argument can specify a shorter length to snap via the :n key.
   def snap(*chips)
     # A trailing Hash argument can be passed for options
@@ -229,20 +229,39 @@ class ADC16 < KATCP::RoachClient
     adc16_controller[1] = 0
 
     out = chips.map do |chip|
-      adc16_controller[1024*chip+1024,len]
+      # Do snap
+      d = adc16_controller[1024*chip+1024,len]
+      # Convert to NArray if len == 1
+      if len == 1
+        d -= (1<<32) if d >= (1<<31)
+        d=NArray[d]
+      end
+      # Convert to bytes
+      d = d.hton.to_type_as_binary(NArray::BYTE)
+      # Reshape to 4-by-len matrix
+      d.reshape!(4, true)
+      # Convert to integers
+      d = d.to_type(NArray::INT)
+      # Convert to signed numbers
+      d.add!(128).mod!(256).sbt!(128)
     end
 
     chips.length == 1 ? out[0] : out
   end
 
   def walk_taps(chip, expected=0x2a)
+
+    # Convert lowest 8 bits of expected from unsigned byte to signed integer
+    expected &= 0xff
+    expected -= (1<<8) if expected >= (1<<7)
+
     good_taps = [[], [], [], []]
     counts = [[], [], [], []]
 
     (0..31).each do |tap|
       delay_tap(chip, tap)
       # Get snap data and convert to matrix of bytes
-      d = snap(chip, :n=>1024).hton.to_type_as_binary(NArray::BYTE).reshape(8,true)
+      d = snap(chip, :n=>1024).reshape(8,true)
       4.times do |chan|
         chan_counts = [
           d[chan  , nil].ne(expected).where.length, # "even" samples
@@ -277,16 +296,21 @@ class ADC16 < KATCP::RoachClient
     4.times {|chip| walk_taps(chip, deskew_expected)}
     # Set sync pattern
     sync_pattern
+    # Convert lowest 8 bits of expected from unsigned byte to signed integer
+    sync_expected &= 0xff
+    sync_expected -= (1<<8) if sync_expected > (1<<7)
+
     # Bit slip each ADC
     status = (0..3).map do |chip|
       8.times do
-        # Done if byte value matches sync_expected
-        break if snap(chip, :n=>1) & 0xff == sync_expected
+        # Done if any (e.g. first) channel matches sync_expected
+        break if snap(chip, :n=>1)[0] == sync_expected
         bitslip(chip)
       end
       # Verify sucessful sync-up
-      snap(chip, :n=>1) & 0xff == sync_expected
+      snap(chip, :n=>1)[0] == sync_expected
     end
+    status
   end
 
 end # class ADC16
