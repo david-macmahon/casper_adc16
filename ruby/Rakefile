@@ -1,0 +1,54 @@
+require 'rubygems'
+require 'rubygems/package_task'
+
+# Get KATCP::VERSION
+require './lib/adc16/version.rb'
+
+spec = Gem::Specification.new do |s|
+  # Basics
+  s.name = 'adc16'
+  s.version = ADC16::VERSION
+  s.summary = 'CASPER ADC16 library for Ruby'
+  s.description = <<-EOD
+    Provides CASPER ADC16 client library for Ruby.  Uses KATCP (the Karoo Array
+    Telescope Control Protocol) to communicate with devices.
+    EOD
+  #s.platform = Gem::Platform::Ruby
+  s.required_ruby_version = '>= 1.8.1'
+  s.add_dependency('katcp', '>= 0.0.8')
+
+  # About
+  s.authors = 'David MacMahon'
+  s.email = 'davidm@astro.berkeley.edu'
+  s.homepage = 'http://rb-adc16.rubyforge.org/'
+  s.rubyforge_project = 'rb-adc16' 
+
+  # Files, Libraries, and Extensions
+  s.files = %w[
+    lib/adc16.rb
+    lib/adc16/test.rb
+    lib/adc16/version.rb
+    bin/adc16_plot_taps.rb
+  ]
+  s.require_paths = ['lib']
+  #s.autorequire = nil
+  #s.bindir = 'bin'
+  s.executables = %w[adc16_plot_taps.rb]
+  #s.default_executable = nil
+
+  # C compilation
+  #s.extensions = %w[ ext/extconf.rb ]
+
+  # Documentation
+  s.rdoc_options = ['--title', "Ruby/ADC16 #{s.version} Documentation"]
+  s.has_rdoc = true
+  #s.extra_rdoc_files = %w[README]
+
+  # Testing TODO
+  #s.test_files = [test/test.rb]
+end
+
+Gem::PackageTask.new(spec) do |pkg|
+  pkg.need_zip = true
+  pkg.need_tar = true
+end
