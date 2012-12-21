@@ -8,8 +8,8 @@ include Pgplot
 # TODO Get these from command line
 opts = {
   :device => ENV['PGPLOT_DEV'] || '/xs',
-  :nx => 1,
-  :ny => 1,
+  :nx => 4,
+  :ny => 4,
   :ask => true,
   :nsamps => 100
 }
