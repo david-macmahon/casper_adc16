@@ -6,15 +6,8 @@ class ADC16Test < ADC16
   DEFAULT_BOF = 'adc16_test_2012_Dec_20_1424.bof'
 
   def initialize(*args)
-    # If a Hash was passed as last argument
-    if Hash === args[-1]
-      # Set value of its :bof key, if unset
-      args[-1][:bof] ||= DEFAULT_BOF
-    else
-      # Push Hash onto end of args
-      args << {:bof => DEFAULT_BOF}
-    end
     super(*args)
+    @opts[:bof] ||= DEFAULT_BOF
   end
 
   DEVICE_TYPEMAP = {

@@ -79,7 +79,7 @@ class ADC16 < KATCP::RoachClient
     raise 'FPGA not programmed' unless programmed?
     adc_reset
     adc_power_cycle
-    progdev self.opts[:bof] if self.opts[:bof]
+    progdev @opts[:bof] if @opts[:bof]
   end
 
   # Set output data endian-ness and binary format.  If +msb_invert+ is true,
