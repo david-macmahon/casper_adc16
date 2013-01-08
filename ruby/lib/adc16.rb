@@ -183,7 +183,7 @@ class ADC16 < KATCP::RoachClient
   # (0b1010) would set the delay taps for channels 1 and 3 of ADC +chip+.
   def delay_tap(chip, tap, chans=0b1111)
     # Current gateware treats +chans+ in a bit-reversed way relative to the
-    # above documentation, so for now the code bit-reveres the lower four bits.
+    # above documentation, so for now the code bit-reverses the lower four bits.
     chans = ((chans&1)<<3) | ((chans&2)<<1) | ((chans&4)>>1) | ((chans&8)>>3)
     # Set tap bits
     val = (tap&0x1f) << TAP_SHIFT

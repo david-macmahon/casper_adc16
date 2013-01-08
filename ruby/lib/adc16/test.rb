@@ -50,7 +50,7 @@ class ADC16Test < ADC16
       # snap_x_ctrl bit 0: 0-to-1 = enable
       # snap_x_ctrl bit 1: trigger (0=external, 1=immediate)
       # snap_x_ctrl bit 2: write enable (0=external, 1=always)
-      # snap_x_ctrl bit 3: cirular capture (0=one-shot, 1=circular)
+      # snap_x_ctrl bit 3: circular capture (0=one-shot, 1=circular)
       #
       # Due to tcpborphserver3 bug, writes to the control registers must be
       # done using the KATCP ?wordwrite command.  See the email thread at
