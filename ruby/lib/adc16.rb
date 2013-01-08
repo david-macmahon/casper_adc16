@@ -17,6 +17,10 @@ class ADC16 < KATCP::RoachClient
     @chip_select = 0b1111
   end
 
+  def progdev(bof=@opts[:bof])
+    super(bof)
+  end
+
   # 4-bits of chip select values
   attr_accessor :chip_select
   alias :cs  :chip_select
