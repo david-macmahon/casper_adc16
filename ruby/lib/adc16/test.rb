@@ -3,7 +3,7 @@ require 'adc16'
 # Class for communicating with snap and trig blocks of adc16_test model.
 class ADC16Test < ADC16
 
-  DEFAULT_BOF = 'adc16_test_2012_Dec_20_1424.bof'
+  DEFAULT_BOF = 'adc16_test_2013_Jan_09_1252.bof'
 
   def initialize(*args)
     super(*args)
