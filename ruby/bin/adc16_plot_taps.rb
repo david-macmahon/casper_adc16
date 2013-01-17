@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'rubygems'
+
 require 'narray'
 require 'adc16'
 require 'pgplot/plotter'
@@ -30,6 +31,13 @@ def plot_counts(counts, plotopts={})
   plot(logcounts[0,nil], plotopts)
   plotopts[:overlay] = true
   plot(logcounts[1,nil], plotopts)
+
+  # Plot points where both lanes have zero error count in green
+  pgsci(Color::GREEN)
+  good = logcounts[0,nil].eq(0).and(logcounts[1,nil].eq(0)).where
+  good.each do |x|
+    pgpt1(x, 0, Marker::CIRCLE)
+  end
 end
 
 plot=Plotter.new(opts)
