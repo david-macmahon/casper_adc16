@@ -1,7 +1,6 @@
 require 'rubygems'
 require 'katcp'
-require 'pgplot/plotter'
-include Pgplot
+#require 'adc16/version'
 
 class ADC16 < KATCP::RoachClient
   DEVICE_TYPEMAP = {
@@ -14,52 +13,87 @@ class ADC16 < KATCP::RoachClient
 
   def initialize(*args)
     super(*args)
-    @chip_select = 0b1111
+    @chip_select = 0xff
   end
 
   def progdev(bof=@opts[:bof])
     super(bof)
   end
 
-  # 4-bits of chip select values
+  # 8-bits of chip select values
   attr_accessor :chip_select
   alias :cs  :chip_select
   alias :cs= :chip_select=
 
+  # Convert +chip_spec+ to zero-based chip number.  +chip_spec+ can be
+  # a Symbol from :a to :h, an Integer from 0 to 7, or a string from 'a' to 'h'
+  # or 'A' to 'H'.
+  def self.chip_num(chip_spec)
+    case chip_spec
+    when 0, :a, 'a', 'A'; 0
+    when 1, :b, 'b', 'B'; 1
+    when 2, :c, 'c', 'C'; 2
+    when 3, :d, 'd', 'D'; 3
+    when 4, :e, 'e', 'E'; 4
+    when 5, :f, 'f', 'F'; 5
+    when 6, :g, 'g', 'G'; 6
+    when 7, :h, 'h', 'H'; 7
+    else
+      raise "invalid chip spec '#{chip_spec}'"
+    end
+  end
+
   # ======================================= #
-  # ADC0 3-Wire Register Bits               #
+  # ADC16 3-Wire Register (word 0)          #
   # ======================================= #
-  # C = SCLK (clock)                        #
-  # D = SDATA (data)                        #
-  # 0 = CSN1 (chip select 1)                #
-  # 1 = CSN2 (chip select 2)                #
-  # 2 = CSN3 (chip select 3)                #
-  # 3 = CSN4 (chip select 4)                #
+  # LL = Clock locked bits                  #
+  # NNNN = Number of ADC chips supported    #
+  # RR = ROACH2 revision expected/required  #
+  # C = SCLK                                #
+  # D = SDATA                               #
+  # 7 = CSNH (chip select H, active high)   #
+  # 6 = CSNG (chip select G, active high)   #
+  # 5 = CSNF (chip select F, active high)   #
+  # 4 = CSNE (chip select E, active high)   #
+  # 3 = CSND (chip select D, active high)   #
+  # 2 = CSNC (chip select C, active high)   #
+  # 1 = CSNB (chip select B, active high)   #
+  # 0 = CSNA (chip select A, active high)   #
   # ======================================= #
   # |<-- MSb                       LSb -->| #
   # 0000_0000_0011_1111_1111_2222_2222_2233 #
   # 0123_4567_8901_2345_6789_0123_4567_8901 #
-  # C--- ---- ---- ---- ---- ---- ---- ---- #
-  # -D-- ---- ---- ---- ---- ---- ---- ---- #
-  # --1- ---- ---- ---- ---- ---- ---- ---- #
-  # ---2 ---- ---- ---- ---- ---- ---- ---- #
-  # ---- 3--- ---- ---- ---- ---- ---- ---- #
-  # ---- -4-- ---- ---- ---- ---- ---- ---- #
+  # ---- --LL ---- ---- ---- ---- ---- ---- #
+  # ---- ---- NNNN ---- ---- ---- ---- ---- #
+  # ---- ---- ---- --RR ---- ---- ---- ---- #
+  # ---- ---- ---- ---- ---- --C- ---- ---- #
+  # ---- ---- ---- ---- ---- ---D ---- ---- #
+  # ---- ---- ---- ---- ---- ---- 7654 3210 #
+  # |<--- Status ---->| |<--- 3-Wire ---->| #
+  # ======================================= #
+  # NOTE: LL reflects the runtime lock      #
+  #       status of a line clock from each  #
+  #       ADC board.  A '1' bit means       #
+  #       locked (good!).  Bit 5 is always  #
+  #       used, but bit 6 is only used when #
+  #       NNNN is 4 (or less).              #
+  # ======================================= #
+  # NOTE: NNNN and RR are read-only values  #
+  #       that are set at compile time.     #
+  #       They do not indicate the state    #
+  #       of the actual hardware in use     #
+  #       at runtime.                       #
   # ======================================= #
 
-  SCL = 1<<31
-  SDA_SHIFT = 30
-  CSN_SHIFT = 26
-  IDLE_3WIRE = 0x3c00_0000
+  SCL = 0x200
+  SDA_SHIFT = 8
+  IDLE_3WIRE = SCL
 
   def send_3wire_bit(bit)
     # Clock low, data and chip selects set accordingly
-    adc16_controller[0] = ((  bit         &     1) << SDA_SHIFT) |
-                          (((~chip_select)&0b1111) << CSN_SHIFT)
+    adc16_controller[0] =       (chip_select&0xff) | ((bit&1) << SDA_SHIFT)
     # Clock high, data and chip selects set accordingly
-    adc16_controller[0] = ((  bit         &     1) << SDA_SHIFT) |
-                          (((~chip_select)&0b1111) << CSN_SHIFT) |
-                          SCL
+    adc16_controller[0] = SCL | (chip_select&0xff) | ((bit&1) << SDA_SHIFT)
   end
 
   def setreg(addr, val)
@@ -68,6 +102,35 @@ class ADC16 < KATCP::RoachClient
     15.downto(0) {|i| send_3wire_bit(val>>i)}
     adc16_controller[0] = IDLE_3WIRE
     self
+  end
+
+  LOCKED_SHIFT = 24
+  LOCKED_MASK  =  3 # after left shift by LOCKED_SHIFT
+
+  # Return the locked status of the ADC board(s).
+  #
+  #   0 = only no ADC clocks are locked (BAD)
+  #   1 = only ADC0 clock is locked (OK if num_adcs <= 4, BAD if num_adcs >=5)
+  #   2 = only ADC1 clock is locked (BAD since ADC0 clock is always needed)
+  #   3 = both ADC clocks are locked (OK, but weird if num_adcs <=4)
+  def locked_status
+    (adc16_controller[0] >> LOCKED_SHIFT) & LOCKED_MASK
+  end
+
+  NUM_ADCS_SHIFT =  20
+  NUM_ADCS_MASK  = 0xF # after left shift by NUM_ADCS_SHIFT
+
+  # Returns the number of ADCS for which the gateware was built (currently
+  # limited to 4 or 8).
+  def num_adcs
+    (adc16_controller[0] >> NUM_ADCS_SHIFT) & NUM_ADCS_MASK
+  end
+
+  ROACH2_REV_SHIFT = 16
+  ROACH2_REV_MASK  =  3 # after left shift by ROACH2_REV_SHIFT
+
+  def roach2_rev
+    (adc16_controller[0] >> ROACH2_REV_SHIFT) & ROACH2_REV_MASK
   end
 
   def adc_reset
@@ -138,37 +201,37 @@ class ADC16 < KATCP::RoachClient
   end
 
   # ======================================= #
-  # ADC0 Control Register Bits              #
+  # ADC16 Control Register (word 1)         #
   # ======================================= #
-  # D = Delay RST                           #
+  # R = ADC16 Reset                         #
+  # S = Snap Request                        #
+  # H = ISERDES Bit Slip Chip H             #
+  # G = ISERDES Bit Slip Chip G             #
+  # F = ISERDES Bit Slip Chip F             #
+  # E = ISERDES Bit Slip Chip E             #
+  # D = ISERDES Bit Slip Chip D             #
+  # C = ISERDES Bit Slip Chip C             #
+  # B = ISERDES Bit Slip Chip B             #
+  # A = ISERDES Bit Slip Chip A             #
   # T = Delay Tap                           #
-  # B = ISERDES Bit Slip                    #
-  # R = Reset                               #
   # ======================================= #
   # |<-- MSb                       LSb -->| #
   # 0000 0000 0011 1111 1111 2222 2222 2233 #
   # 0123 4567 8901 2345 6789 0123 4567 8901 #
-  # DDDD DDDD DDDD DDDD ---- ---- ---- ---- #
-  # ---- ---- ---- ---- TTTT T--- ---- ---- #
-  # ---- ---- ---- ---- ---- -BBB B--- ---- #
-  # ---- ---- ---- ---- ---- ---- ---- -R-- #
+  # ---- ---- ---R ---- ---- ---- ---- ---- #
+  # ---- ---- ---- ---S ---- ---- ---- ---- #
+  # ---- ---- ---- ---- HGFE DCBA ---- ---- #
+  # ---- ---- ---- ---- ---- ---- ---T TTTT #
   # ======================================= #
 
-  TAP_SHIFT = 11
-  ADC_A_BITSLIP = 0x080
-  ADC_B_BITSLIP = 0x100
-  ADC_C_BITSLIP = 0x200
-  ADC_D_BITSLIP = 0x400
+  SNAP_REQ = (1<<16)
+  BITSLIP_SHIFT = 8
+  DELAY_TAP_MASK = 0x1F
 
   def bitslip(*chips)
     val = 0
     chips.each do |c|
-      val |= case c
-            when 0, :a, 'a', 'A'; ADC_A_BITSLIP
-            when 1, :b, 'b', 'B'; ADC_B_BITSLIP
-            when 2, :c, 'c', 'C'; ADC_C_BITSLIP
-            when 3, :d, 'd', 'D'; ADC_D_BITSLIP
-            end
+      val |= (1 << (BITSLIP_SHIFT+ADC16.chip_num(c)))
     end
     adc16_controller[1] = 0
     adc16_controller[1] = val
@@ -177,37 +240,8 @@ class ADC16 < KATCP::RoachClient
     self
   end
 
-  # Sets the delay tap for ADC +chip+ to +tap+ for channels specified in
-  # +chans+ bitmask.  Bit 0 of +chans+ (i.e. 0x1, the least significant bit) is
-  # channel 0, bit 1 (i.e. 0x2) is channel 1, etc.  A +chans+ value of 10
-  # (0b1010) would set the delay taps for channels 1 and 3 of ADC +chip+.
-  def delay_tap(chip, tap, chans=0b1111)
-    # Current gateware treats +chans+ in a bit-reversed way relative to the
-    # above documentation, so for now the code bit-reverses the lower four bits.
-    chans = ((chans&1)<<3) | ((chans&2)<<1) | ((chans&4)>>1) | ((chans&8)>>3)
-    # Set tap bits
-    val = (tap&0x1f) << TAP_SHIFT
-    # Write value with reset bits off
-    # (avoids unconstrained path race condition)
-    adc16_controller[1] = val
-    # Set chip specific reset bits for the requested channels
-    case chip
-    when 0, :a, 'a', 'A'; val |= (chans&0xf) << 16
-    when 1, :b, 'b', 'B'; val |= (chans&0xf) << 20
-    when 2, :c, 'c', 'C'; val |= (chans&0xf) << 24
-    when 3, :d, 'd', 'D'; val |= (chans&0xf) << 28
-    else raise "Invalid chip: #{chip}"
-    end
-    # Write value with reset bits on
-    adc16_controller[1] = val
-    # Clear all bits
-    adc16_controller[1] = 0
-
-    self
-  end
-
-  # For each chip given in +chips+ (one or more of :a to :d, 0 to 3, 'a' to
-  # 'd', or 'A' to 'D'), an NArray is returned.  By default, the NArray has
+  # For each chip given in +chips+ (one or more of :a to :h, 0 to 7, 'a' to
+  # 'h', or 'A' to 'H'), an NArray is returned.  By default, the NArray has
   # 4x1024 elements (i.e. the complete snapshot buffer), but a trailing Hash
   # argument can specify a shorter length to snap via the :n key.
   def snap(*chips)
@@ -218,18 +252,10 @@ class ADC16 < KATCP::RoachClient
     len = 1024 if len > 1024
 
     # Convert chips to integers
-    chips.map! do |chip|
-      case chip
-      when 0, :a, 'a', 'A'; 0
-      when 1, :b, 'b', 'B'; 1
-      when 2, :c, 'c', 'C'; 2
-      when 3, :d, 'd', 'D'; 3
-      else raise "Invalid chip: #{chip}"
-      end
-    end
+    chips.map! {|c| ADC16.chip_num(c)}
 
     adc16_controller[1] = 0
-    adc16_controller[1] = 1
+    adc16_controller[1] = SNAP_REQ
     adc16_controller[1] = 0
 
     out = chips.map do |chip|
@@ -253,26 +279,80 @@ class ADC16 < KATCP::RoachClient
     chips.length == 1 ? out[0] : out
   end
 
-  def walk_taps(chip, expected=0x2a)
+  # =============================================== #
+  # ADC16 Delay Strobe Register (word 2)            #
+  # =============================================== #
+  # D = Delay Strobe (rising edge active)           #
+  # =============================================== #
+  # |<-- MSb                              LSb -->|  #
+  # 0000  0000  0011  1111  1111  2222  2222  2233  #
+  # 0123  4567  8901  2345  6789  0123  4567  8901  #
+  # DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  #
+  # |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  #
+  # H4 H1 G4 G1 F4 F1 E4 E1 D4 D1 C4 C1 B4 B1 A4 A1 #
+  # =============================================== #
 
-    # Convert lowest 8 bits of expected from unsigned byte to signed integer
-    expected &= 0xff
-    expected -= (1<<8) if expected >= (1<<7)
+  # Sets the delay tap for ADC +chip+ to +tap+ for channels specified in
+  # +chans+ bitmask.  Bit 0 of +chans+ (i.e. 0x1, the least significant bit) is
+  # channel 0, bit 1 (i.e. 0x2) is channel 1, etc.  A +chans+ value of 10
+  # (0b1010) would set the delay taps for channels 1 and 3 of ADC +chip+.
+  def delay_tap(chip, tap, chans=0b1111)
+#    # Current gateware treats +chans+ in a bit-reversed way relative to the
+#    # above documentation, so for now the code bit-reverses the lower four bits.
+#    chans = ((chans&1)<<3) | ((chans&2)<<1) | ((chans&4)>>1) | ((chans&8)>>3)
+    chans &= 0xf
+
+    # Clear the strobe bits
+    adc16_controller[2] = 0
+    # Set tap bits
+    adc16_controller[1] = tap & DELAY_TAP_MASK
+    # Set the strobe bits
+    adc16_controller[2] = chans << (4*ADC16.chip_num(chip))
+    # Clear all bits
+    #adc16_controller[1,2] = [0, 0]
+    adc16_controller[2] = 0
+    adc16_controller[1] = 0
+
+    self
+  end
+
+  def walk_taps(chip, opts={})
+    # Allow caller to override default opts
+    opts = {
+      :expected => 0x2a,
+      :num_iters => 1,
+      :verbose => false
+    }.merge!(opts)
+
+    # Convert lowest 8 bits of opts[:expected] from unsigned byte to signed integer
+    expected = opts[:expected] & 0xff
+    expected -= 256 if expected >= 128
 
     good_taps = [[], [], [], []]
     counts = [[], [], [], []]
 
     (0..31).each do |tap|
       delay_tap(chip, tap)
-      # Get snap data and convert to matrix of bytes
-      d = snap(chip, :n=>1024).reshape(8,true)
+      chan_counts = [[0,0],[0,0],[0,0],[0,0]]
+      opts[:num_iters].times do |iter|
+        # Get snap data and convert to 8-by-N matrix of bytes
+        d = snap(chip, :n=>1024).reshape(8,true)
+        # Examine each channel in snap data and accumulate data
+        4.times do |chan|
+          even_errcount = d[chan  , nil].ne(expected).where.length # "even" samples
+          odd_errcount  = d[chan+4, nil].ne(expected).where.length  # "odd"  samples
+          chan_counts[chan][0] += even_errcount
+          chan_counts[chan][1] += odd_errcount
+          if opts[:verbose] == :very
+            puts "chip #{chip} tap #{tap} chan #{chan} iter #{iter} err_counts [#{even_errcount}, #{odd_errcount}]"
+          end
+        end
+      end
+
+      # Check each channel's chan_counts
       4.times do |chan|
-        chan_counts = [
-          d[chan  , nil].ne(expected).where.length, # "even" samples
-          d[chan+4, nil].ne(expected).where.length  # "odd"  samples
-        ]
-        counts[chan] << chan_counts
-        good_taps[chan] << tap if chan_counts == [0,0] # Good when both even and odd errors are 0
+        counts[chan] << chan_counts[chan]
+        good_taps[chan] << tap if chan_counts[chan] == [0,0] # Good when both even and odd errors are 0
       end
     end
 
@@ -290,23 +370,41 @@ class ADC16 < KATCP::RoachClient
       best_chan_tap = good_chan_taps[good_chan_taps.length/2]
       next if best_chan_tap.nil?  # TODO Warn or raise exception?
       delay_tap(chip, best_chan_tap, 1<<chan)
+      puts "chip #{chip} chan #{chan} setting tap=#{best_chan_tap}"
     end
 
     [good_taps, counts]
   end
 
-  def calibrate(deskew_expected=0x2a, sync_expected=0x70)
+  def calibrate(opts={})
+    # Allow caller to override default opts
+    opts = {
+      :deskew_expected => 0x2a,
+      :sync_expected => 0x70,
+      :num_iters => 1,
+      :verbose => false
+    }.merge!(opts)
+
+    # Create :expected alias for :deskew_expected so that opts can be passed to walk_taps
+    opts[:expected] = opts[:deskew_expected]
+
+    # Error out if ADC0 is not locked
+    raise 'ADC0 clock not locked' if (locked_status&1) == 0
+    # Warn if ADC1 clock is not locked when num_adcs > 4
+    warn 'warning: ADC1 clock not locked' if (locked_status&2) == 0 && num_adcs > 4
+
     # Set deskew pattern
     deskew_pattern
-    4.times {|chip| walk_taps(chip, deskew_expected)}
+    num_adcs.times {|chip| walk_taps(chip, opts)}
     # Set sync pattern
     sync_pattern
-    # Convert lowest 8 bits of expected from unsigned byte to signed integer
-    sync_expected &= 0xff
+    # Convert lowest 8 bits of opts[:sync_expected] from unsigned byte to signed integer
+    sync_expected = opts[:sync_expected] & 0xff
     sync_expected -= (1<<8) if sync_expected > (1<<7)
 
     # Bit slip each ADC
-    status = (0..3).map do |chip|
+    status = (0...num_adcs).map do |chip|
+      # Try up to 8 bitslip operations to get things right
       8.times do
         # Done if any (e.g. first) channel matches sync_expected
         break if snap(chip, :n=>1)[0] == sync_expected

@@ -3,32 +3,42 @@ require 'adc16'
 # Class for communicating with snap and trig blocks of adc16_test model.
 class ADC16Test < ADC16
 
-  DEFAULT_BOF = 'adc16_test_2013_Jan_09_1252.bof'
+  DEFAULT_BOF = 'adc16_test_rev1x8.bof'
 
   def initialize(*args)
     super(*args)
     @opts[:bof] ||= DEFAULT_BOF
   end
 
+  # Map device names to device types.  OK to list devices that may not be
+  # present.
   DEVICE_TYPEMAP = {
     :snap_a_bram   => :bram,
     :snap_b_bram   => :bram,
     :snap_c_bram   => :bram,
     :snap_d_bram   => :bram,
+    :snap_e_bram   => :bram,
+    :snap_f_bram   => :bram,
+    :snap_g_bram   => :bram,
+    :snap_h_bram   => :bram,
     :snap_a_status => :roreg,
     :snap_b_status => :roreg,
     :snap_c_status => :roreg,
-    :snap_d_status => :roreg
+    :snap_d_status => :roreg,
+    :snap_e_status => :roreg,
+    :snap_f_status => :roreg,
+    :snap_g_status => :roreg,
+    :snap_h_status => :roreg
   }
 
   def device_typemap
     super.merge!(DEVICE_TYPEMAP)
   end
 
-  # For each chip given in +chips+ (one or more of :a to :d, 0 to 3, 'a' to
-  # 'd', or 'A' to 'D'), an NArray is returned.  By default, the NArry has
+  # For each chip given in +chips+ (one or more of :a to :h, 0 to 7, 'a' to
+  # 'h', or 'A' to 'H'), an NArray is returned.  By default, each NArry has
   # 4x64K elements (i.e the complete snapshot buffer), but a trailing Hash
-  # argument can specify the leth to snap via the :n key.
+  # argument can specify the length to snap via the :n key.
   def snap_test(*chips)
     # A trailing Hash argument can be passed for options
     opts = (Hash === chips[-1]) ? chips.pop : {}
@@ -41,6 +51,10 @@ class ADC16Test < ADC16
       when 1, :b, 'b', 'B'; :b
       when 2, :c, 'c', 'C'; :c
       when 3, :d, 'd', 'D'; :d
+      when 4, :e, 'e', 'E'; :e
+      when 5, :f, 'f', 'F'; :f
+      when 6, :g, 'g', 'G'; :g
+      when 7, :h, 'h', 'H'; :h
       else raise "Invalid chip: #{chip}"
       end
     end
