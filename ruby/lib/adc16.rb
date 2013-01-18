@@ -379,11 +379,20 @@ class ADC16 < KATCP::RoachClient
   def calibrate(opts={})
     # Allow caller to override default opts
     opts = {
+      :chips => [:a, :b, :c, :d, :e, :f, :g, :h],
       :deskew_expected => 0x2a,
       :sync_expected => 0x70,
       :num_iters => 1,
       :verbose => false
     }.merge!(opts)
+
+    # Make sure opts[:chips] is an Array (and allow :chip to override :chips)
+    opts[:chips] = [opts[:chip]||opts[:chips]]
+    opts[:chips].flatten!
+    # Convert to chip numbers (and reject those that are not supported/used
+    opts[:chips].map! {|c| c=ADC16.chip_num(c); c < num_adcs ? c : nil}
+    opts[:chips].compact!
+    puts "calibrating chips #{opts[:chips].inspect}" if opts[:verbose]
 
     # Create :expected alias for :deskew_expected so that opts can be passed to walk_taps
     opts[:expected] = opts[:deskew_expected]
@@ -395,7 +404,7 @@ class ADC16 < KATCP::RoachClient
 
     # Set deskew pattern
     deskew_pattern
-    num_adcs.times {|chip| walk_taps(chip, opts)}
+    opts[:chips].each {|chip| walk_taps(chip, opts)}
     # Set sync pattern
     sync_pattern
     # Convert lowest 8 bits of opts[:sync_expected] from unsigned byte to signed integer
@@ -403,7 +412,7 @@ class ADC16 < KATCP::RoachClient
     sync_expected -= (1<<8) if sync_expected > (1<<7)
 
     # Bit slip each ADC
-    status = (0...num_adcs).map do |chip|
+    status = opts[:chips].map do |chip|
       # Try up to 8 bitslip operations to get things right
       8.times do
         # Done if any (e.g. first) channel matches sync_expected
