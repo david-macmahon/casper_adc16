@@ -370,7 +370,7 @@ class ADC16 < KATCP::RoachClient
       best_chan_tap = good_chan_taps[good_chan_taps.length/2]
       next if best_chan_tap.nil?  # TODO Warn or raise exception?
       delay_tap(chip, best_chan_tap, 1<<chan)
-      puts "chip #{chip} chan #{chan} setting tap=#{best_chan_tap}"
+      puts "chip #{chip} chan #{chan} setting tap=#{best_chan_tap}" if opts[:verbose]
     end
 
     [good_taps, counts]
