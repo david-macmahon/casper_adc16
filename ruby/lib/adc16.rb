@@ -280,9 +280,22 @@ class ADC16 < KATCP::RoachClient
   end
 
   # =============================================== #
-  # ADC16 Delay Strobe Register (word 2)            #
+  # ADC16 Delay A Strobe Register (word 2)          #
   # =============================================== #
   # D = Delay Strobe (rising edge active)           #
+  # =============================================== #
+  # |<-- MSb                              LSb -->|  #
+  # 0000  0000  0011  1111  1111  2222  2222  2233  #
+  # 0123  4567  8901  2345  6789  0123  4567  8901  #
+  # DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  #
+  # |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  #
+  # H4 H1 G4 G1 F4 F1 E4 E1 D4 D1 C4 C1 B4 B1 A4 A1 #
+  # =============================================== #
+
+  # =============================================== #
+  # ADC0 Delay B Strobe Register (word 3)           #
+  # =============================================== #
+  # D = Delay RST                                   #
   # =============================================== #
   # |<-- MSb                              LSb -->|  #
   # 0000  0000  0011  1111  1111  2222  2222  2233  #
@@ -302,15 +315,26 @@ class ADC16 < KATCP::RoachClient
 #    chans = ((chans&1)<<3) | ((chans&2)<<1) | ((chans&4)>>1) | ((chans&8)>>3)
     chans &= 0xf
 
+    # Newer gateware versions (as of adc16_test_2013_Jan_19_0934) support
+    # separate lane "a" and "b" delays.  In these newer versions, word 2 of
+    # adc16_controller is the the strobe for the lane "a" delays and word 3 is
+    # the strobe for the lane "b" delays.  For now, this routine sets the "a"
+    # and "b" delays to be the same, just like the old gateware did.  Since
+    # writing to word 3 has no effect on older gateware versions, this code can
+    # still be used with older gateware.
+
     # Clear the strobe bits
     adc16_controller[2] = 0
+    adc16_controller[3] = 0
     # Set tap bits
     adc16_controller[1] = tap & DELAY_TAP_MASK
     # Set the strobe bits
     adc16_controller[2] = chans << (4*ADC16.chip_num(chip))
+    adc16_controller[3] = chans << (4*ADC16.chip_num(chip))
     # Clear all bits
     #adc16_controller[1,2] = [0, 0]
     adc16_controller[2] = 0
+    adc16_controller[3] = 0
     adc16_controller[1] = 0
 
     self
