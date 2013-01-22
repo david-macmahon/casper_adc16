@@ -350,7 +350,9 @@ class ADC16 < KATCP::RoachClient
     expected = opts[:expected] & 0xff
     expected -= 256 if expected >= 128
 
-    good_taps = [[], [], [], []]
+    # good_taps has four elements, one element for each channel;
+    # each channel's element has two elements, one for each lane.
+    good_taps = [[[],[]], [[],[]], [[],[]], [[],[]]]
     counts = [[], [], [], []]
 
     (0..31).each do |tap|
@@ -374,13 +376,15 @@ class ADC16 < KATCP::RoachClient
       # Check each channel's chan_counts
       4.times do |chan|
         counts[chan] << chan_counts[chan]
-        good_taps[chan] << tap if chan_counts[chan] == [0,0] # Good when both even and odd errors are 0
+        good_taps[chan][0] << tap if chan_counts[chan][0] == 0
+        good_taps[chan][1] << tap if chan_counts[chan][1] == 0
       end
     end
 
     # Set delay taps to middle of the good range
     4.times do |chan|
-      good_chan_taps = good_taps[chan]
+      # For now, taps are only really good when good for both lanes.
+      good_chan_taps = good_taps[chan][0] & good_taps[chan][1]
       next if good_chan_taps.empty? # uh-oh...
       # Handle case where good tap values wrap around from 31 to 0
       if good_chan_taps.max - good_chan_taps.min > 16
