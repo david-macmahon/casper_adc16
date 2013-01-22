@@ -309,7 +309,7 @@ class ADC16 < KATCP::RoachClient
   # +chans+ bitmask.  Bit 0 of +chans+ (i.e. 0x1, the least significant bit) is
   # channel 0, bit 1 (i.e. 0x2) is channel 1, etc.  A +chans+ value of 10
   # (0b1010) would set the delay taps for channels 1 and 3 of ADC +chip+.
-  def delay_tap(chip, tap, chans=0b1111)
+  def delay_tap(chip, tap, chans=0b1111_1111)
     # Newer gateware versions (as of adc16_test_2013_Jan_19_0934) support
     # separate lane "a" and "b" delays.  In these newer versions, word 2 of
     # adc16_controller is the the strobe for the lane "a" delays and word 3 is
@@ -317,9 +317,8 @@ class ADC16 < KATCP::RoachClient
     # and "b" delays to be the same, just like the old gateware did.  Since
     # writing to word 3 has no effect on older gateware versions, this code can
     # still be used with older gateware.
-    a_chans = chans & 0x0f
-    #b_chans = chans & 0xf0
-    b_chans = chans & 0x0f
+    a_chans = (chans     ) & 0xf
+    b_chans = (chans >> 4) & 0xf
 
     # Clear the strobe bits
     adc16_controller[2] = 0
@@ -383,20 +382,21 @@ class ADC16 < KATCP::RoachClient
 
     # Set delay taps to middle of the good range
     4.times do |chan|
-      # For now, taps are only really good when good for both lanes.
-      good_chan_taps = good_taps[chan][0] & good_taps[chan][1]
-      next if good_chan_taps.empty? # uh-oh...
-      # Handle case where good tap values wrap around from 31 to 0
-      if good_chan_taps.max - good_chan_taps.min > 16
-        low = good_chan_taps.find_all {|t| t < 16}
-        hi  = good_chan_taps.find_all {|t| t > 15}
-        low.map! {|t| t + 32}
-        good_chan_taps = hi + low
+      2.times do |lane|
+        good_chan_taps = good_taps[chan][lane]
+        next if good_chan_taps.empty? # uh-oh...
+        # Handle case where good tap values wrap around from 31 to 0
+        if good_chan_taps.max - good_chan_taps.min > 16
+          low = good_chan_taps.find_all {|t| t < 16}
+          hi  = good_chan_taps.find_all {|t| t > 15}
+          low.map! {|t| t + 32}
+          good_chan_taps = hi + low
+        end
+        best_chan_tap = good_chan_taps[good_chan_taps.length/2]
+        next if best_chan_tap.nil?  # TODO Warn or raise exception?
+        delay_tap(chip, best_chan_tap, 1<<(chan+4*lane))
+        puts "chip #{chip} chan #{chan} lane #{lane} setting tap=#{best_chan_tap}" if opts[:verbose]
       end
-      best_chan_tap = good_chan_taps[good_chan_taps.length/2]
-      next if best_chan_tap.nil?  # TODO Warn or raise exception?
-      delay_tap(chip, best_chan_tap, 1<<chan)
-      puts "chip #{chip} chan #{chan} setting tap=#{best_chan_tap}" if opts[:verbose]
     end
 
     [good_taps, counts]
