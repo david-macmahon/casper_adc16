@@ -310,11 +310,6 @@ class ADC16 < KATCP::RoachClient
   # channel 0, bit 1 (i.e. 0x2) is channel 1, etc.  A +chans+ value of 10
   # (0b1010) would set the delay taps for channels 1 and 3 of ADC +chip+.
   def delay_tap(chip, tap, chans=0b1111)
-#    # Current gateware treats +chans+ in a bit-reversed way relative to the
-#    # above documentation, so for now the code bit-reverses the lower four bits.
-#    chans = ((chans&1)<<3) | ((chans&2)<<1) | ((chans&4)>>1) | ((chans&8)>>3)
-    chans &= 0xf
-
     # Newer gateware versions (as of adc16_test_2013_Jan_19_0934) support
     # separate lane "a" and "b" delays.  In these newer versions, word 2 of
     # adc16_controller is the the strobe for the lane "a" delays and word 3 is
@@ -322,6 +317,9 @@ class ADC16 < KATCP::RoachClient
     # and "b" delays to be the same, just like the old gateware did.  Since
     # writing to word 3 has no effect on older gateware versions, this code can
     # still be used with older gateware.
+    a_chans = chans & 0x0f
+    #b_chans = chans & 0xf0
+    b_chans = chans & 0x0f
 
     # Clear the strobe bits
     adc16_controller[2] = 0
@@ -329,8 +327,8 @@ class ADC16 < KATCP::RoachClient
     # Set tap bits
     adc16_controller[1] = tap & DELAY_TAP_MASK
     # Set the strobe bits
-    adc16_controller[2] = chans << (4*ADC16.chip_num(chip))
-    adc16_controller[3] = chans << (4*ADC16.chip_num(chip))
+    adc16_controller[2] = a_chans << (4*ADC16.chip_num(chip))
+    adc16_controller[3] = b_chans << (4*ADC16.chip_num(chip))
     # Clear all bits
     #adc16_controller[1,2] = [0, 0]
     adc16_controller[2] = 0
