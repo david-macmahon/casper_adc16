@@ -423,7 +423,7 @@ class ADC16 < KATCP::RoachClient
     puts "calibrating chips #{opts[:chips].inspect}" if opts[:verbose]
 
     # Create :expected alias for :deskew_expected so that opts can be passed to walk_taps
-    opts[:expected] = opts[:deskew_expected]
+    opts[:expected] = opts[:deskew_expected] unless opts[:expected]
 
     # Error out if ADC0 is not locked
     raise 'ADC0 clock not locked' if (locked_status&1) == 0
