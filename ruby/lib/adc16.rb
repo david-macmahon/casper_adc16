@@ -142,9 +142,20 @@ class ADC16 < KATCP::RoachClient
     setreg(0x0f, 0x0000) # Powerup
   end
 
-  def adc_init
+  # Initializes the ADCs that are enabled by +chip_select+.  The +opts+ Hash
+  # consists of integer keys and values.  The keys are register addresses to
+  # which the corresponding values will be written.  A few "special" symbols
+  # keys are also supported:
+  #
+  #   :phase_ddr (value ignored) == Set phase_ddr to 0 degrees
+  def adc_init(opts={})
     raise 'FPGA not programmed' unless programmed?
     adc_reset
+    if opts.has_key? :phase_ddr
+      opts[0x42] = 0x60
+      opts.delete(:phase_ddr)
+    end
+    opts.each {|addr,val| setreg(addr, val) if (0x00..0x56) === addr}
     adc_power_cycle
     progdev @opts[:bof] if @opts[:bof]
   end
