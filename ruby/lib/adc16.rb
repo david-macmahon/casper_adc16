@@ -381,6 +381,7 @@ class ADC16 < KATCP::RoachClient
     end
 
     # Set delay taps to middle of the good range
+    set_taps = [[],[],[],[]]
     4.times do |chan|
       2.times do |lane|
         good_chan_taps = good_taps[chan][lane]
@@ -392,14 +393,15 @@ class ADC16 < KATCP::RoachClient
           low.map! {|t| t + 32}
           good_chan_taps = hi + low
         end
-        best_chan_tap = good_chan_taps[good_chan_taps.length/2]
+        best_chan_tap = good_chan_taps[good_chan_taps.length/2] % 32
         next if best_chan_tap.nil?  # TODO Warn or raise exception?
         delay_tap(chip, best_chan_tap, 1<<(chan+4*lane))
         puts "chip #{chip} chan #{chan} lane #{lane} setting tap=#{best_chan_tap}" if opts[:verbose]
+        set_taps[chan][lane] = best_chan_tap
       end
     end
 
-    [good_taps, counts]
+    [set_taps, counts]
   end
 
   def calibrate(opts={})
