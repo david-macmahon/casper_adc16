@@ -348,7 +348,7 @@ class ADC16 < KATCP::RoachClient
     self
   end
 
-  def walk_taps(chip, opts={})
+  def test_tap(chip, tap, opts={})
     # Allow caller to override default opts
     opts = {
       :expected => 0x2a,
@@ -357,35 +357,71 @@ class ADC16 < KATCP::RoachClient
     }.merge!(opts)
 
     # Convert lowest 8 bits of opts[:expected] from unsigned byte to signed integer
-    expected = opts[:expected] & 0xff
+    expected  = opts[:expected] & 0xff
     expected -= 256 if expected >= 128
+
+    # Set tap
+    delay_tap(chip, tap)
+
+    # Accumulate error counts for opts[:num_iters] iterations
+    chan_counts = [[0,0],[0,0],[0,0],[0,0]]
+    opts[:num_iters].times do |iter|
+      # Get snap data and convert to 8-by-N matrix of bytes
+      d = snap(chip, :n=>1024).reshape(8,true)
+      # Examine each channel in snap data and accumulate data
+      4.times do |chan|
+        # Check for expected value
+        even_errcount = d[chan  , nil].ne(expected).where.length # "even" samples
+        odd_errcount  = d[chan+4, nil].ne(expected).where.length  # "odd"  samples
+        chan_counts[chan][0] += even_errcount
+        chan_counts[chan][1] += odd_errcount
+        if opts[:verbose] == :very
+          print "chip #{chip} "
+          print "tap #{tap} "
+          print "chan #{chan} "
+          print "iter #{iter} "
+          puts "err_counts [#{even_errcount}, #{odd_errcount}]"
+        end
+      end # for each channel
+    end # for num_iters
+
+    chan_counts
+  end
+
+  def walk_taps(chip, opts={})
+    # Allow caller to override default opts
+    opts = {
+      :expected => 0x2a,
+      :num_iters => 1,
+      :verbose => false
+    }.merge!(opts)
+
+    # Set deskew pattern
+    deskew_pattern
+
+    # Test taps 0 and 31.  If either extreme tap setting is good for any
+    # lane of any channel, we assume that the "eye" of the expected pattern
+    # will not be fully crossed by sweeping the delay, so we bitslip the chip
+    # to shift the expected pattern by an odd number of bits (either right 1 or
+    # left 3).
+    chan_counts_0  = test_tap(chip,  0, opts)
+    chan_counts_31 = test_tap(chip, 31, opts)
+    if [chan_counts_0, chan_counts_31].flatten.index(0)
+      puts "bitslipping chip #{chip} to sample eye pattern better" if opts[:verbose]
+      bitslip(chip)
+    end
 
     # good_taps has four elements, one element for each channel;
     # each channel's element has two elements, one for each lane.
     good_taps = [[[],[]], [[],[]], [[],[]], [[],[]]]
     counts = [[], [], [], []]
 
+    # Test all taps
     (0..31).each do |tap|
-      delay_tap(chip, tap)
-      chan_counts = [[0,0],[0,0],[0,0],[0,0]]
-      opts[:num_iters].times do |iter|
-        # Get snap data and convert to 8-by-N matrix of bytes
-        d = snap(chip, :n=>1024).reshape(8,true)
-        # Examine each channel in snap data and accumulate data
-        4.times do |chan|
-          even_errcount = d[chan  , nil].ne(expected).where.length # "even" samples
-          odd_errcount  = d[chan+4, nil].ne(expected).where.length  # "odd"  samples
-          chan_counts[chan][0] += even_errcount
-          chan_counts[chan][1] += odd_errcount
-          if opts[:verbose] == :very
-            puts "chip #{chip} tap #{tap} chan #{chan} iter #{iter} err_counts [#{even_errcount}, #{odd_errcount}]"
-          end
-        end
-      end
-
+      chan_counts = test_tap(chip, tap, opts)
       # Check each channel's chan_counts
       4.times do |chan|
-        counts[chan] << chan_counts[chan]
+        counts[chan][tap] = chan_counts[chan]
         good_taps[chan][0] << tap if chan_counts[chan][0] == 0
         good_taps[chan][1] << tap if chan_counts[chan][1] == 0
       end
@@ -397,14 +433,14 @@ class ADC16 < KATCP::RoachClient
       2.times do |lane|
         good_chan_taps = good_taps[chan][lane]
         next if good_chan_taps.empty? # uh-oh...
-        # Handle case where good tap values wrap around from 31 to 0
+        # Detect case where good tap values "wrap around"
+        # (might break for slow sample clocks).
         if good_chan_taps.max - good_chan_taps.min > 16
-          low = good_chan_taps.find_all {|t| t < 16}
-          hi  = good_chan_taps.find_all {|t| t > 15}
-          low.map! {|t| t + 32}
-          good_chan_taps = hi + low
+          puts "chip #{chip} chan #{chan} lane #{lane} good tap range too large" if opts[:verbose]
+          set_taps[chan][lane] = nil
+          next
         end
-        best_chan_tap = good_chan_taps[good_chan_taps.length/2] % 32
+        best_chan_tap = good_chan_taps[good_chan_taps.length/2]
         next if best_chan_tap.nil?  # TODO Warn or raise exception?
         delay_tap(chip, best_chan_tap, 1<<(chan+4*lane))
         puts "chip #{chip} chan #{chan} lane #{lane} setting tap=#{best_chan_tap}" if opts[:verbose]
@@ -441,9 +477,9 @@ class ADC16 < KATCP::RoachClient
     # Warn if ADC1 clock is not locked when num_adcs > 4
     warn 'warning: ADC1 clock not locked' if (locked_status&2) == 0 && num_adcs > 4
 
-    # Set deskew pattern
-    deskew_pattern
+    # Walk delay taps (sets deskew pattern)
     opts[:chips].each {|chip| walk_taps(chip, opts)}
+
     # Set sync pattern
     sync_pattern
     # Convert lowest 8 bits of opts[:sync_expected] from unsigned byte to signed integer
