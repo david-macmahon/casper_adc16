@@ -9,24 +9,28 @@ require 'adc16'
 require 'pgplot/plotter'
 include Pgplot
 
-# TODO Get these from command line
 OPTS = {
   :device => ENV['PGPLOT_DEV'] || '/xs',
   :nxy => [4,4],
   :verbose => false,
-  :num_iters => 1
+  :num_iters => 1,
+  :expected => 0x2a
 }
 
 OP = OptionParser.new do |o|
   o.program_name = File.basename($0)
 
-  o.banner = "Usage: #{o.program_name} [OPTIONS] ROACH2_NAME"
+  o.banner = "Usage: #{o.program_name} [OPTIONS] ROACH2_NAME [BOF]"
   o.separator('')
   o.separator('Plot error counts for various ADC16 delay tap settings.')
+  o.separator('Programs FPGA with BOF, if given.')
   o.separator('')
   o.separator 'Options:'
   o.on('-d', '--device=DEV', "Plot device to use [#{OPTS[:device]}]") do |o|
     OPTS[:device] = o
+  end
+  o.on('-e', '--expected=N', "Expected value of deskew pattern [#{OPTS[:expected]}]") do |o|
+    OPTS[:expected] = Integer(o) rescue OPTS[:expected]
   end
   o.on('-i', '--iters=N', Integer, "Number of snaps per tap [#{OPTS[:num_iters]}]") do |o|
     OPTS[:num_iters] = o
@@ -55,6 +59,13 @@ end
 raise "\nusage: #{File.basename $0} R2HOSTNAME" unless ARGV[0]
 
 a = ADC16.new(ARGV[0])
+
+if ARGV[1]
+  puts "Programming FPGA with #{ARGV[1]}" if OPTS[:verbose]
+  a.progdev ARGV[1]
+  puts 'Initializing ADC' if OPTS[:verbose]
+  a.adc_init
+end
 
 def plot_counts(counts, plotopts={})
   plotopts = {
