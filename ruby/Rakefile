@@ -28,6 +28,7 @@ spec = Gem::Specification.new do |s|
     bin/adc16_dump_chans.rb
     bin/adc16_plot_chan.rb
     bin/adc16_plot_chans.rb
+    bin/adc16_plot_spec.rb
     bin/adc16_plot_taps.rb
     bin/adc16_test_init.rb
     lib/adc16.rb
@@ -41,6 +42,7 @@ spec = Gem::Specification.new do |s|
     adc16_dump_chans.rb
     adc16_plot_chan.rb
     adc16_plot_chans.rb
+    adc16_plot_spec.rb
     adc16_plot_taps.rb
     adc16_test_init.rb
   ]
