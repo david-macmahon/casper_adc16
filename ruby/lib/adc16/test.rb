@@ -5,6 +5,7 @@ class ADC16Test < ADC16
 
   DEFAULT_BOF = 'adc16_test_rev1x8.bof'
 
+  # Sets a default BOF file to DEFAULT_BOF if none passed in by caller.
   def initialize(*args)
     super(*args)
     @opts[:bof] ||= DEFAULT_BOF
@@ -29,9 +30,9 @@ class ADC16Test < ADC16
     :snap_f_status => :roreg,
     :snap_g_status => :roreg,
     :snap_h_status => :roreg
-  }
+  } # :nodoc:
 
-  def device_typemap
+  def device_typemap # :nodoc:
     super.merge!(DEVICE_TYPEMAP)
   end
 
@@ -39,6 +40,10 @@ class ADC16Test < ADC16
   # 'h', or 'A' to 'H'), an NArray is returned.  By default, each NArry has
   # 4x64K elements (i.e the complete snapshot buffer), but a trailing Hash
   # argument can specify the length to snap via the :n key.
+  #
+  # This is a larger snapshot than the built-in snapshot blocks (accessible via
+  # ADC16#snap), but there is no a/b lane to even/odd sample consistency in
+  # this larger snapshot block.
   def snap_test(*chips)
     # A trailing Hash argument can be passed for options
     opts = (Hash === chips[-1]) ? chips.pop : {}

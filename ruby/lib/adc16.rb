@@ -1,26 +1,133 @@
 require 'rubygems'
-require 'katcp'
 #require 'adc16/version'
+require 'katcp'
+
+# Provides KATCP wrapper around ADC16 based CASPER design.  Includes many
+# convenience functions for writing to the registers of the ADC chips,
+# calibrating the SERDES blocks, and accessing status info about the ADC16
+# design and clock status.  While most access will be done via the methods of
+# this class, there may be occasion to access the ADC16 controller directly
+# (via the #adc16_controller method, which returns a KATCP::Bram object).
+#
+# Here is the memory map for the underlying #adc16_controller device:
+#
+#   # ======================================= #
+#   # ADC16 3-Wire Register (word 0)          #
+#   # ======================================= #
+#   # LL = Clock locked bits                  #
+#   # NNNN = Number of ADC chips supported    #
+#   # RR = ROACH2 revision expected/required  #
+#   # C = SCLK                                #
+#   # D = SDATA                               #
+#   # 7 = CSNH (chip select H, active high)   #
+#   # 6 = CSNG (chip select G, active high)   #
+#   # 5 = CSNF (chip select F, active high)   #
+#   # 4 = CSNE (chip select E, active high)   #
+#   # 3 = CSND (chip select D, active high)   #
+#   # 2 = CSNC (chip select C, active high)   #
+#   # 1 = CSNB (chip select B, active high)   #
+#   # 0 = CSNA (chip select A, active high)   #
+#   # ======================================= #
+#   # |<-- MSb                       LSb -->| #
+#   # 0000_0000_0011_1111_1111_2222_2222_2233 #
+#   # 0123_4567_8901_2345_6789_0123_4567_8901 #
+#   # ---- --LL ---- ---- ---- ---- ---- ---- #
+#   # ---- ---- NNNN ---- ---- ---- ---- ---- #
+#   # ---- ---- ---- --RR ---- ---- ---- ---- #
+#   # ---- ---- ---- ---- ---- --C- ---- ---- #
+#   # ---- ---- ---- ---- ---- ---D ---- ---- #
+#   # ---- ---- ---- ---- ---- ---- 7654 3210 #
+#   # |<--- Status ---->| |<--- 3-Wire ---->| #
+#   # ======================================= #
+#   # NOTE: LL reflects the runtime lock      #
+#   #       status of a line clock from each  #
+#   #       ADC board.  A '1' bit means       #
+#   #       locked (good!).  Bit 5 is always  #
+#   #       used, but bit 6 is only used when #
+#   #       NNNN is 4 (or less).              #
+#   # ======================================= #
+#   # NOTE: NNNN and RR are read-only values  #
+#   #       that are set at compile time.     #
+#   #       They do not indicate the state    #
+#   #       of the actual hardware in use     #
+#   #       at runtime.                       #
+#   # ======================================= #
+#
+#   # ======================================= #
+#   # ADC16 Control Register (word 1)         #
+#   # ======================================= #
+#   # R = ADC16 Reset                         #
+#   # S = Snap Request                        #
+#   # H = ISERDES Bit Slip Chip H             #
+#   # G = ISERDES Bit Slip Chip G             #
+#   # F = ISERDES Bit Slip Chip F             #
+#   # E = ISERDES Bit Slip Chip E             #
+#   # D = ISERDES Bit Slip Chip D             #
+#   # C = ISERDES Bit Slip Chip C             #
+#   # B = ISERDES Bit Slip Chip B             #
+#   # A = ISERDES Bit Slip Chip A             #
+#   # T = Delay Tap                           #
+#   # ======================================= #
+#   # |<-- MSb                       LSb -->| #
+#   # 0000 0000 0011 1111 1111 2222 2222 2233 #
+#   # 0123 4567 8901 2345 6789 0123 4567 8901 #
+#   # ---- ---- ---R ---- ---- ---- ---- ---- #
+#   # ---- ---- ---- ---S ---- ---- ---- ---- #
+#   # ---- ---- ---- ---- HGFE DCBA ---- ---- #
+#   # ---- ---- ---- ---- ---- ---- ---T TTTT #
+#   # ======================================= #
+#
+#   # =============================================== #
+#   # ADC16 Delay A Strobe Register (word 2)          #
+#   # =============================================== #
+#   # D = Delay Strobe (rising edge active)           #
+#   # =============================================== #
+#   # |<-- MSb                              LSb -->|  #
+#   # 0000  0000  0011  1111  1111  2222  2222  2233  #
+#   # 0123  4567  8901  2345  6789  0123  4567  8901  #
+#   # DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  #
+#   # |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  #
+#   # H4 H1 G4 G1 F4 F1 E4 E1 D4 D1 C4 C1 B4 B1 A4 A1 #
+#   # =============================================== #
+#
+#   # =============================================== #
+#   # ADC0 Delay B Strobe Register (word 3)           #
+#   # =============================================== #
+#   # D = Delay Strobe (rising edge active)           #
+#   # =============================================== #
+#   # |<-- MSb                              LSb -->|  #
+#   # 0000  0000  0011  1111  1111  2222  2222  2233  #
+#   # 0123  4567  8901  2345  6789  0123  4567  8901  #
+#   # DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  #
+#   # |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  #
+#   # H4 H1 G4 G1 F4 F1 E4 E1 D4 D1 C4 C1 B4 B1 A4 A1 #
+#   # =============================================== #
 
 class ADC16 < KATCP::RoachClient
   DEVICE_TYPEMAP = {
     :adc16_controller => :bram
-  }
+  } # :nodoc:
 
-  def device_typemap
+  def device_typemap # :nodoc:
     DEVICE_TYPEMAP
   end
 
+  # Standard KATCP::RoachClient arguments, plus support for:
+  #   :bof => BOF_FILE
   def initialize(*args)
     super(*args)
     @chip_select = 0xff
   end
 
+  # Programs FPGA.  If bof is not given, any BOF file passed to "#new" will be
+  # used.  Passing +nil+ will deprogram the FPGA.
   def progdev(bof=@opts[:bof])
     super(bof)
   end
 
-  # 8-bits of chip select values
+  # Eight bits of chip select values.  Bit 0 (the least significant bit)
+  # selects ADC A; bit 7 selects ADC H.  A value of '1' selects the ADC; '0'
+  # deselects it.
   attr_accessor :chip_select
   alias :cs  :chip_select
   alias :cs= :chip_select=
@@ -43,59 +150,18 @@ class ADC16 < KATCP::RoachClient
     end
   end
 
-  # ======================================= #
-  # ADC16 3-Wire Register (word 0)          #
-  # ======================================= #
-  # LL = Clock locked bits                  #
-  # NNNN = Number of ADC chips supported    #
-  # RR = ROACH2 revision expected/required  #
-  # C = SCLK                                #
-  # D = SDATA                               #
-  # 7 = CSNH (chip select H, active high)   #
-  # 6 = CSNG (chip select G, active high)   #
-  # 5 = CSNF (chip select F, active high)   #
-  # 4 = CSNE (chip select E, active high)   #
-  # 3 = CSND (chip select D, active high)   #
-  # 2 = CSNC (chip select C, active high)   #
-  # 1 = CSNB (chip select B, active high)   #
-  # 0 = CSNA (chip select A, active high)   #
-  # ======================================= #
-  # |<-- MSb                       LSb -->| #
-  # 0000_0000_0011_1111_1111_2222_2222_2233 #
-  # 0123_4567_8901_2345_6789_0123_4567_8901 #
-  # ---- --LL ---- ---- ---- ---- ---- ---- #
-  # ---- ---- NNNN ---- ---- ---- ---- ---- #
-  # ---- ---- ---- --RR ---- ---- ---- ---- #
-  # ---- ---- ---- ---- ---- --C- ---- ---- #
-  # ---- ---- ---- ---- ---- ---D ---- ---- #
-  # ---- ---- ---- ---- ---- ---- 7654 3210 #
-  # |<--- Status ---->| |<--- 3-Wire ---->| #
-  # ======================================= #
-  # NOTE: LL reflects the runtime lock      #
-  #       status of a line clock from each  #
-  #       ADC board.  A '1' bit means       #
-  #       locked (good!).  Bit 5 is always  #
-  #       used, but bit 6 is only used when #
-  #       NNNN is 4 (or less).              #
-  # ======================================= #
-  # NOTE: NNNN and RR are read-only values  #
-  #       that are set at compile time.     #
-  #       They do not indicate the state    #
-  #       of the actual hardware in use     #
-  #       at runtime.                       #
-  # ======================================= #
+  SCL = 0x200      # :nodoc:
+  SDA_SHIFT = 8    # :nodoc:
+  IDLE_3WIRE = SCL # :nodoc:
 
-  SCL = 0x200
-  SDA_SHIFT = 8
-  IDLE_3WIRE = SCL
-
-  def send_3wire_bit(bit)
+  def send_3wire_bit(bit) # :nodoc:
     # Clock low, data and chip selects set accordingly
     adc16_controller[0] =       (chip_select&0xff) | ((bit&1) << SDA_SHIFT)
     # Clock high, data and chip selects set accordingly
     adc16_controller[0] = SCL | (chip_select&0xff) | ((bit&1) << SDA_SHIFT)
   end
 
+  # Sets register +addr+ to +val+ on all chips selected by +chip_select+.
   def setreg(addr, val)
     adc16_controller[0] = IDLE_3WIRE
     7.downto(0) {|i| send_3wire_bit(addr>>i)}
@@ -104,8 +170,8 @@ class ADC16 < KATCP::RoachClient
     self
   end
 
-  LOCKED_SHIFT = 24
-  LOCKED_MASK  =  3 # after left shift by LOCKED_SHIFT
+  LOCKED_SHIFT = 24 # :nodoc:
+  LOCKED_MASK  =  3 # :nodoc: after left shift by LOCKED_SHIFT
 
   # Return the locked status of the ADC board(s).
   #
@@ -117,8 +183,8 @@ class ADC16 < KATCP::RoachClient
     (adc16_controller[0] >> LOCKED_SHIFT) & LOCKED_MASK
   end
 
-  NUM_ADCS_SHIFT =  20
-  NUM_ADCS_MASK  = 0xF # after left shift by NUM_ADCS_SHIFT
+  NUM_ADCS_SHIFT =  20 # :nodoc:
+  NUM_ADCS_MASK  = 0xF # :nodoc: after left shift by NUM_ADCS_SHIFT
 
   # Returns the number of ADCS for which the gateware was built (currently
   # limited to 4 or 8).
@@ -126,17 +192,20 @@ class ADC16 < KATCP::RoachClient
     (adc16_controller[0] >> NUM_ADCS_SHIFT) & NUM_ADCS_MASK
   end
 
-  ROACH2_REV_SHIFT = 16
-  ROACH2_REV_MASK  =  3 # after left shift by ROACH2_REV_SHIFT
+  ROACH2_REV_SHIFT = 16 # :nodoc:
+  ROACH2_REV_MASK  =  3 # :nodoc: after left shift by ROACH2_REV_SHIFT
 
+  # Returns the ROACH2 revision for which the ADC16 design was build (1 or 2).
   def roach2_rev
     (adc16_controller[0] >> ROACH2_REV_SHIFT) & ROACH2_REV_MASK
   end
 
+  # Performs a reset of all ADCs selected by +chip_select+.
   def adc_reset
     setreg(0x00, 0x0001) # reset
   end
 
+  # Performs a power cycle of all ADCs selected by +chip_select+.
   def adc_power_cycle
     setreg(0x0f, 0x0200) # Powerdown
     setreg(0x0f, 0x0000) # Powerup
@@ -148,6 +217,9 @@ class ADC16 < KATCP::RoachClient
   # keys are also supported:
   #
   #   :phase_ddr (value ignored) == Set phase_ddr to 0 degrees
+  #
+  # ADC initialiation consists of resetting the ADC, programming any registers
+  # desired, then power cycling.  See the ADC datasheet for more details.
   def adc_init(opts={})
     raise 'FPGA not programmed' unless programmed?
     adc_reset
@@ -160,9 +232,15 @@ class ADC16 < KATCP::RoachClient
     progdev @opts[:bof] if @opts[:bof]
   end
 
-  # Set output data endian-ness and binary format.  If +msb_invert+ is true,
-  # then invert msb (i.e. output 2's complement (else straight offset binary).
-  # If +msb_first+ is true, then output msb first (else lsb first).
+  # Set output data endian-ness and binary format of all ADCs selected by
+  # +chip_select+.  If +msb_invert+ is true, then invert msb (i.e. output 2's
+  # complement (else straight offset binary).  If +msb_first+ is true, then
+  # output msb first (else lsb first).
+  #
+  # Note that the ADC yellow block expects the ADC defaults for data
+  # endian-ness and binary format, so this method is mostly intended for low
+  # level devlopment.  The ADC chip outputs "straight offset binary" format by
+  # default, but the ADC16 yellow block converts that to two's complement form.
   def data_format(invert_msb=false, msb_first=false)
     val = 0x0000
     val |= invert_msb ? 4 : 0
@@ -170,17 +248,19 @@ class ADC16 < KATCP::RoachClient
     setreg(0x46, val)
   end
 
-  # +ptn+ can be any of:
+  # Selects a test pattern or sampled data for all ADCs selected by
+  # +chip_select+.  +ptn+ can be any of:
   #
   #   :ramp            Ramp pattern 0-255
-  #   :deskew (:eye)   Deskew pattern (01010101)
+  #   :deskew (:eye)   Deskew pattern (10101010)
   #   :sync (:frame)   Sync pattern (11110000)
   #   :custom1         Custom1 pattern
   #   :custom2         Custom2 pattern
   #   :dual            Dual custom pattern
-  #   :none            No pattern
+  #   :none            No pattern (sampled data)
   #
-  # Default is :ramp.  Any value other than shown above is the same as :none.
+  # Default is :ramp.  Any value other than shown above is the same as :none
+  # (i.e. pass through sampled data).
   def enable_pattern(ptn=:ramp)
     setreg(0x25, 0x0000)
     setreg(0x45, 0x0000)
@@ -193,52 +273,37 @@ class ADC16 < KATCP::RoachClient
     end
   end
 
+  # Convenience for <code>enable_pattern :none</code>.
   def clear_pattern;  enable_pattern :none;   end
+  # Convenience for <code>enable_pattern :ramp</code>.
   def ramp_pattern;   enable_pattern :ramp;   end
+  # Convenience for <code>enable_pattern :deskew</code>.
   def deskew_pattern; enable_pattern :deskew; end
+  # Convenience for <code>enable_pattern :sync</code>.
   def sync_pattern;   enable_pattern :sync;   end
+  # Convenience for <code>enable_pattern :custom</code>.
   def custom_pattern; enable_pattern :custom; end
+  # Convenience for <code>enable_pattern :dual</code>.
   def dual_pattern;   enable_pattern :dual;   end
+  # Convenience for <code>enable_pattern :none</code>.
   def no_pattern;     enable_pattern :none;   end
 
-  # Set the custom bits 1 from the lowest 8 bits of +bits+.
+  # Set the "custom 1" pattern from the lowest 8 bits of +bits+.
   def custom1=(bits)
     setreg(0x26, (bits&0xff) << 8)
   end
 
-  # Set the custom bits 2 from the lowest 8 bits of +bits+.
+  # Set the "custom 2" pattern from the lowest 8 bits of +bits+.
   def custom2=(bits)
     setreg(0x27, (bits&0xff) << 8)
   end
 
-  # ======================================= #
-  # ADC16 Control Register (word 1)         #
-  # ======================================= #
-  # R = ADC16 Reset                         #
-  # S = Snap Request                        #
-  # H = ISERDES Bit Slip Chip H             #
-  # G = ISERDES Bit Slip Chip G             #
-  # F = ISERDES Bit Slip Chip F             #
-  # E = ISERDES Bit Slip Chip E             #
-  # D = ISERDES Bit Slip Chip D             #
-  # C = ISERDES Bit Slip Chip C             #
-  # B = ISERDES Bit Slip Chip B             #
-  # A = ISERDES Bit Slip Chip A             #
-  # T = Delay Tap                           #
-  # ======================================= #
-  # |<-- MSb                       LSb -->| #
-  # 0000 0000 0011 1111 1111 2222 2222 2233 #
-  # 0123 4567 8901 2345 6789 0123 4567 8901 #
-  # ---- ---- ---R ---- ---- ---- ---- ---- #
-  # ---- ---- ---- ---S ---- ---- ---- ---- #
-  # ---- ---- ---- ---- HGFE DCBA ---- ---- #
-  # ---- ---- ---- ---- ---- ---- ---T TTTT #
-  # ======================================= #
+  SNAP_REQ = (1<<16)    # :nodoc:
+  BITSLIP_SHIFT = 8     # :nodoc:
+  DELAY_TAP_MASK = 0x1F # :nodoc:
 
-  SNAP_REQ = (1<<16)
-  BITSLIP_SHIFT = 8
-  DELAY_TAP_MASK = 0x1F
-
+  # Performs a bitslip operation on all SERDES blocks for chips given by
+  # +*chips+.
   def bitslip(*chips)
     val = 0
     chips.each do |c|
@@ -255,6 +320,9 @@ class ADC16 < KATCP::RoachClient
   # 'h', or 'A' to 'H'), an NArray is returned.  By default, the NArray has
   # 4x1024 elements (i.e. the complete snapshot buffer), but a trailing Hash
   # argument can specify a shorter length to snap via the :n key.
+  #
+  # For a given channel, the even samples are from lane "a", the odd from lane
+  # "b".
   def snap(*chips)
     # A trailing Hash argument can be passed for options
     opts = (Hash === chips[-1]) ? chips.pop : {}
@@ -290,36 +358,11 @@ class ADC16 < KATCP::RoachClient
     chips.length == 1 ? out[0] : out
   end
 
-  # =============================================== #
-  # ADC16 Delay A Strobe Register (word 2)          #
-  # =============================================== #
-  # D = Delay Strobe (rising edge active)           #
-  # =============================================== #
-  # |<-- MSb                              LSb -->|  #
-  # 0000  0000  0011  1111  1111  2222  2222  2233  #
-  # 0123  4567  8901  2345  6789  0123  4567  8901  #
-  # DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  #
-  # |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  #
-  # H4 H1 G4 G1 F4 F1 E4 E1 D4 D1 C4 C1 B4 B1 A4 A1 #
-  # =============================================== #
-
-  # =============================================== #
-  # ADC0 Delay B Strobe Register (word 3)           #
-  # =============================================== #
-  # D = Delay RST                                   #
-  # =============================================== #
-  # |<-- MSb                              LSb -->|  #
-  # 0000  0000  0011  1111  1111  2222  2222  2233  #
-  # 0123  4567  8901  2345  6789  0123  4567  8901  #
-  # DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  DDDD  #
-  # |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  #
-  # H4 H1 G4 G1 F4 F1 E4 E1 D4 D1 C4 C1 B4 B1 A4 A1 #
-  # =============================================== #
-
   # Sets the delay tap for ADC +chip+ to +tap+ for channels specified in
-  # +chans+ bitmask.  Bit 0 of +chans+ (i.e. 0x1, the least significant bit) is
-  # channel 0, bit 1 (i.e. 0x2) is channel 1, etc.  A +chans+ value of 10
-  # (0b1010) would set the delay taps for channels 1 and 3 of ADC +chip+.
+  # +chans+ bitmask.  Bits 0-3 select the "a" lane of channels 0-3.  Bits 4-7
+  # select the "b" lane of channels 0-3.  For example, a +chans+ value of 33
+  # (0b0010_0001) would set the delay taps for ADC +chip+ channel 0 lane "a"
+  # and channel 1 lane "b" to +tap+.
   def delay_tap(chip, tap, chans=0b1111_1111)
     # Newer gateware versions (as of adc16_test_2013_Jan_19_0934) support
     # separate lane "a" and "b" delays.  In these newer versions, word 2 of
@@ -348,6 +391,7 @@ class ADC16 < KATCP::RoachClient
     self
   end
 
+  # Tests a tap setting for an ADC chip.  Used by #walk_taps.
   def test_tap(chip, tap, opts={})
     # Allow caller to override default opts
     opts = {
@@ -388,6 +432,7 @@ class ADC16 < KATCP::RoachClient
     chan_counts
   end
 
+  # Walks delay tap values for a given ADC chip.
   def walk_taps(chip, opts={})
     # Allow caller to override default opts
     opts = {
@@ -451,6 +496,23 @@ class ADC16 < KATCP::RoachClient
     [set_taps, counts]
   end
 
+  # Calibrates the SERDES blocks for one or more ADC chips.  +opts+ is a Hash
+  # that supports the following keys (shown with default values):
+  #   :chips => [:a, :b, :c, :d, :e, :f, :g, :h]
+  #     - Chips to calibrate
+  #
+  #   :deskew_expected => 0x2a
+  #     - Expected value of deskew pattern (leave at default except for testing)
+  #
+  #   :sync_expected => 0x70
+  #     - Expected value of sync pattern (leave at default except for testing)
+  #
+  #   :num_iters => 1
+  #     - Number of snapshots to accumulate calibration data.
+  #
+  #   :verbose => false
+  #     - Output informative messages if +true+.
+  #     - Output verbose messages if <code>:very</code>.
   def calibrate(opts={})
     # Allow caller to override default opts
     opts = {
