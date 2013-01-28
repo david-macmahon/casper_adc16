@@ -26,11 +26,11 @@ spec = Gem::Specification.new do |s|
   # Files, Libraries, and Extensions
   s.files = %w[
     bin/adc16_dump_chans.rb
+    bin/adc16_init.rb
     bin/adc16_plot_chan.rb
     bin/adc16_plot_chans.rb
     bin/adc16_plot_spec.rb
     bin/adc16_plot_taps.rb
-    bin/adc16_test_init.rb
     lib/adc16.rb
     lib/adc16/test.rb
     lib/adc16/version.rb
@@ -40,11 +40,11 @@ spec = Gem::Specification.new do |s|
   #s.bindir = 'bin'
   s.executables = %w[
     adc16_dump_chans.rb
+    adc16_init.rb
     adc16_plot_chan.rb
     adc16_plot_chans.rb
     adc16_plot_spec.rb
     adc16_plot_taps.rb
-    adc16_test_init.rb
   ]
   #s.default_executable = nil
 
