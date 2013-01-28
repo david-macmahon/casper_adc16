@@ -67,17 +67,43 @@ end
 
 def plot_counts(counts, plotopts={})
   plotopts = {
-    :line => :none,
+    :line => :line,
     :marker => Marker::STAR,
     :title => 'Error Counts vs Delay Tap',
     :ylabel => 'log2(err_count+1)',
-    :xlabel => 'Delay Tap Value'
+    :xlabel => 'Delay Tap Value',
+    :line_color_a => Color::BLUE,
+    :line_color_b => Color::RED
   }.merge!(plotopts)
   logcounts=NMath.log2(NArray[*counts].to_f+1)
+
+  plotopts[:line_color] = plotopts[:line_color_a]
   plotopts[:overlay] = false
   plot(logcounts[0,nil], plotopts)
+
+  plotopts[:line_color] = plotopts[:line_color_b]
   plotopts[:overlay] = true
   plot(logcounts[1,nil], plotopts)
+
+  # Add color coded labels for chose tap settings
+  pgsci(plotopts[:line_color_a])
+  pgmtxt('T', 0.5, 0, 0, "a:#{plotopts[:set_taps][0]}")
+  pgsci(plotopts[:line_color_b])
+  pgmtxt('T', 0.5, 1, 1, "b:#{plotopts[:set_taps][1]}")
+
+  # Plot circles where only lane a has zero error count
+  pgsci(plotopts[:line_color_a])
+  good = logcounts[0,nil].eq(0).and(logcounts[1,nil].ne(0)).where
+  good.each do |x|
+    pgpt1(x, 0, Marker::CIRCLE)
+  end
+
+  # Plot circles where only lane b has zero error count
+  pgsci(plotopts[:line_color_b])
+  good = logcounts[0,nil].ne(0).and(logcounts[1,nil].eq(0)).where
+  good.each do |x|
+    pgpt1(x, 0, Marker::CIRCLE)
+  end
 
   # Plot points where both lanes have zero error count in green
   pgsci(Color::GREEN)
@@ -89,16 +115,19 @@ end
 
 OPTS[:nx], OPTS[:ny] = OPTS[:nxy]
 plotter=Plotter.new(OPTS)
+pgsch(2)
 
+puts 'Selecting ADC deskew pattern' if OPTS[:verbose]
 a.deskew_pattern
 ['A', 'B', 'C', 'D'].each do |chip|
-  good, counts = a.walk_taps(chip, OPTS)
+  set_taps, counts = a.walk_taps(chip, OPTS)
   4.times do |chan|
     title2 = "ADC Channel #{chip}#{chan+1}"
     title2 += " (#{OPTS[:num_iters]} iters)" if OPTS[:num_iters] != 1
-    plot_counts(counts[chan], :title2 => title2)
+    plot_counts(counts[chan], :title2 => title2, :set_taps => set_taps[chan])
   end
 end
+puts 'Selecting ADC analog inputs' if OPTS[:verbose]
 a.no_pattern
 
 plotter.close
