@@ -41,7 +41,7 @@ OP = OptionParser.new do |o|
     end
     OPTS[:nxy] = o.map {|s| Integer(s) rescue 2}
   end
-  o.on('-v', '--[no-]verbose', "Display more info [#{OPTS[:nxy].join(',')}]") do
+  o.on('-v', '--[no-]verbose', "Display more info [#{OPTS[:verbose]}]") do
     OPTS[:verbose] = OPTS[:verbose] ? :very : true
   end
   o.on_tail("-h", "--help", "Show this message") do
@@ -55,8 +55,6 @@ if ARGV.empty?
   STDERR.puts OP
   exit 1
 end
-
-raise "\nusage: #{File.basename $0} R2HOSTNAME" unless ARGV[0]
 
 a = ADC16.new(ARGV[0])
 
