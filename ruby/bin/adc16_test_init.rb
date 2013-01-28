@@ -14,10 +14,18 @@ a.progdev(bof)
 puts "Resetting ADC, power cycling ADC, and reprogramming FPGA..."
 a.adc_init
 
+# TODO Decode and print status bits
+
 puts "Calibrating SERDES blocks..."
-status = a.calibrate
-if status != [true, true, true, true]
-  puts "ERROR: SERDES calibration failed #{status.inspect}"
+status = a.calibrate(OPTS)
+# If any status is false
+if status.index(false)
+  ('A'..'H').each_with_index do |adc, i|
+    break if i >= status.length
+    puts "ERROR: SERDES calibration failed for ADC #{adc}." unless status[i]
+  end
+else
+  puts 'SERDES calibration successful.'
 end
 
 puts "Selecting analog inputs..."
