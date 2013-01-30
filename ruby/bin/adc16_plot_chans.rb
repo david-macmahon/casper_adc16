@@ -53,6 +53,7 @@ a = ADC16.new(ARGV[0])
 
 OPTS[:nx], OPTS[:ny] = OPTS[:nxy]
 plot=Plotter.new(OPTS)
+pgsch(2.5) if OPTS[:nx] > 1 || OPTS[:ny] > 1
 
 #TODO Support second ADC16 board
 CHIPS = ['A', 'B', 'C', 'D']

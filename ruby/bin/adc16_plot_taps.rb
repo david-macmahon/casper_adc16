@@ -115,7 +115,7 @@ end
 
 OPTS[:nx], OPTS[:ny] = OPTS[:nxy]
 plotter=Plotter.new(OPTS)
-pgsch(2)
+pgsch(2.5) if OPTS[:nx] > 1 || OPTS[:ny] > 1
 
 puts 'Selecting ADC deskew pattern' if OPTS[:verbose]
 a.deskew_pattern
