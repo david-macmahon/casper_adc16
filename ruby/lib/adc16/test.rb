@@ -29,7 +29,9 @@ class ADC16Test < ADC16
     :snap_e_status => :roreg,
     :snap_f_status => :roreg,
     :snap_g_status => :roreg,
-    :snap_h_status => :roreg
+    :snap_h_status => :roreg,
+    :sync_count    => :roreg,
+    :sync_period   => :roreg
   } # :nodoc:
 
   def device_typemap # :nodoc:
