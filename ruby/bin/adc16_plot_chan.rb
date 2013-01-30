@@ -18,7 +18,7 @@ OP = OptionParser.new do |o|
 
   o.banner = "Usage: #{o.program_name} [OPTIONS] ROACH2_NAME CHANSPEC"
   o.separator('')
-  o.separator('Plot time series of a single ADC16 channel (a1, d4, etc.)')
+  o.separator('Plot time series of a single ADC16 channel (a1, h4, etc.)')
   o.separator('')
   o.separator 'Options:'
   o.on('-d', '--device=DEV', "Plot device to use [#{OPTS[:device]}]") do |o|
@@ -50,16 +50,13 @@ if ARGV.length < 2
 end
 
 a = ADC16.new(ARGV[0])
-chip, chan = /^([A-Da-d])([1-4])$/.match(ARGV[1]).captures
-raise "\nCHANSPEC must be X#, where X is A-D and # is 1-4" unless chan
+chip, chan = /^([A-Ha-h])([1-4])$/.match(ARGV[1]).captures
+raise "\nCHANSPEC must be X#, where X is A-H and # is 1-4" unless chan
 chan = chan.to_i
 
 OPTS[:nx], OPTS[:ny] = OPTS[:nxy]
 plot=Plotter.new(OPTS)
 pgsch(2.5) if OPTS[:nx] > 1 || OPTS[:ny] > 1
-
-# TODO Support second ADC board
-CHIPS = ['A', 'B', 'C', 'D']
 
 data = a.snap(chip, :n => OPTS[:nsamps])
 plot(data[chan-1,nil],
