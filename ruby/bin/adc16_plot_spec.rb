@@ -28,7 +28,11 @@ OP = OptionParser.new do |o|
   o.on('-d', '--device=DEV', "Plot device to use [#{OPTS[:device]}]") do |o|
     OPTS[:device] = o
   end
-  o.on('-l', '--length=N', Integer, "Number of samples to plot [#{OPTS[:nsamps]}]") do |o|
+  o.on('-l', '--length=N', Integer, "Number of samples to plot (1-1024) [#{OPTS[:nsamps]}]") do |o|
+    if ! (1..1024) === o
+      STDERR.puts 'length option must be between 1 and 1024, inclusive'
+      exit 1
+    end
     OPTS[:nsamps] = o
   end
   o.on('-n', '--nxy=NX,NY', Array, "Controls subplot layout [#{OPTS[:nxy].join(',')}]") do |o|

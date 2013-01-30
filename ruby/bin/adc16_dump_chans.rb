@@ -18,7 +18,11 @@ OP = OptionParser.new do |o|
   o.separator('Dump samples from ADC16 test design')
   o.separator('')
   o.separator 'Options:'
-  o.on('-l', '--length=N', Integer, "Number of samples to dump per channel [#{OPTS[:nsamps]}]") do |o|
+  o.on('-l', '--length=N', Integer, "Number of samples to dump per channel (1-1024) [#{OPTS[:nsamps]}]") do |o|
+    if ! (1..1024) === o
+      STDERR.puts 'length option must be between 1 and 1024, inclusive'
+      exit 1
+    end
     OPTS[:nsamps] = o
   end
   o.on('-r', '--rms', "Output RMS of each channel instead of raw samples [#{OPTS[:rms]}]") do |o|
