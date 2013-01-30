@@ -2,7 +2,7 @@
 
 require 'rubygems'
 require 'optparse'
-require 'adc16/test'
+require 'adc16'
 
 OPTS = {
   :nsamps => (1<<16),
@@ -61,11 +61,11 @@ def dump_rms(data)
   printf(fmt, *rms)
 end
 
-a = ADC16Test.new(ARGV[0])
+a = ADC16.new(ARGV[0])
 
 tic = Time.now
 # TODO Snap all chips available (e.g. both ADC16 boards)
-data = a.snap_test(:a, :b, :c, :d, :n => OPTS[:nsamps])
+data = a.snap(:a, :b, :c, :d, :n => OPTS[:nsamps])
 toc = Time.now
 $stderr.puts "data snap took #{toc-tic} seconds" if OPTS[:verbose]
 

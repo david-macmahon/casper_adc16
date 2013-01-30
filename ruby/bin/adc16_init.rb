@@ -38,7 +38,7 @@ if ARGV.empty?
 end
 
 bof = ARGV[1] || ADC16Test::DEFAULT_BOF
-a = ADC16Test.new(ARGV[0], :bof => bof)
+a = ADC16.new(ARGV[0], :bof => bof)
 
 puts "Programming #{ARGV[0]} with #{bof}..."
 a.progdev(bof)
