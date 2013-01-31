@@ -12,7 +12,7 @@ include Pgplot
 OPTS = {
   :chips => (:a..:h).to_a,
   :device => ENV['PGPLOT_DEV'] || '/xs',
-  :nxy => [4,4],
+  :nxy => nil,
   :verbose => false,
   :num_iters => 1,
   :expected => 0x2a
@@ -39,7 +39,7 @@ OP = OptionParser.new do |o|
   o.on('-i', '--iters=N', Integer, "Number of snaps per tap [#{OPTS[:num_iters]}]") do |o|
     OPTS[:num_iters] = o
   end
-  o.on('-n', '--nxy=NX,NY', Array, "Controls subplot layout [#{OPTS[:nxy].join(',')}]") do |o|
+  o.on('-n', '--nxy=NX,NY', Array, "Controls subplot layout [auto]") do |o|
     if o.length != 2
       raise OptionParser::InvalidArgument.new('invalid NX,NY')
     end
@@ -64,6 +64,17 @@ a = ADC16.new(ARGV[0])
 
 # Limit chips to those supported by gateware
 OPTS[:chips].select! {|c| ADC16.chip_num(c) < a.num_adcs}
+
+if OPTS[:nxy]
+  OPTS[:nx], OPTS[:ny] = OPTS[:nxy]
+else
+  OPTS[:nx], OPTS[:ny] = case OPTS[:chips].length
+                         when 1; [2, 2]
+                         when 2; [4, 2]
+                         when 3; [4, 3]
+                         else; [4, 4]
+                         end
+end
 
 if ARGV[1]
   puts "Programming FPGA with #{ARGV[1]}" if OPTS[:verbose]
@@ -120,9 +131,9 @@ def plot_counts(counts, plotopts={})
   end
 end
 
-OPTS[:nx], OPTS[:ny] = OPTS[:nxy]
 plotter=Plotter.new(OPTS)
-pgsch(2.5) if OPTS[:nx] > 1 || OPTS[:ny] > 1
+pgsch(2.0) if OPTS[:nx] * OPTS[:ny] > 2
+pgsch(2.5) if OPTS[:nx] * OPTS[:ny] > 6
 
 puts 'Selecting ADC deskew pattern' if OPTS[:verbose]
 a.deskew_pattern
