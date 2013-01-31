@@ -150,6 +150,22 @@ class ADC16 < KATCP::RoachClient
     end
   end
 
+  # Returns chip name and channel number for +chan_name+, which must be a two
+  # character String or Symbol whose first character is in the range A-H (or
+  # a-h) and whose second character is in the range 1-4.  For example, "A1"
+  # specifies channel 1 of ADC A.  An exception is raised if +chan_name+ is
+  # malformed.
+  #
+  # Example:
+  #
+  #   >> ADC16.chip_chan(:b4)
+  #   => ["b", 4]
+  def self.chip_chan(chan_name)
+    chip, chan = /^([A-Ha-h])([1-4])$/.match(chan_name).captures
+    raise 'channel name must be X#, where X is A-H and # is 1-4' unless chan
+    [chip, chan.to_i]
+  end
+
   SCL = 0x200      # :nodoc:
   SDA_SHIFT = 8    # :nodoc:
   IDLE_3WIRE = SCL # :nodoc:

@@ -56,9 +56,7 @@ end
 raise "\nusage: #{File.basename $0} R2HOSTNAME CHANSPEC" unless ARGV[0] && ARGV[1]
 
 a = ADC16.new(ARGV[0])
-chip, chan = /^([A-Da-d])([1-4])$/.match(ARGV[1]).captures
-raise "\nCHANSPEC must be X#, where X is A-D and # is 1-4" unless chan
-chan = chan.to_i
+chip, chan = ADC16.chip_chan(ARGV[1])
 
 OPTS[:nx], OPTS[:ny] = OPTS[:nxy]
 plot=Plotter.new(OPTS)

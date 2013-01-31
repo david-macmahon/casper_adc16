@@ -50,9 +50,7 @@ if ARGV.length < 2
 end
 
 a = ADC16.new(ARGV[0])
-chip, chan = /^([A-Ha-h])([1-4])$/.match(ARGV[1]).captures
-raise "\nCHANSPEC must be X#, where X is A-H and # is 1-4" unless chan
-chan = chan.to_i
+chip, chan = ADC16.chip_chan(ARGV[1])
 
 OPTS[:nx], OPTS[:ny] = OPTS[:nxy]
 plot=Plotter.new(OPTS)
