@@ -11,7 +11,8 @@ OPTS = {
   :device => ENV['PGPLOT_DEV'] || '/xs',
   :nxy => nil,
   :ask => true,
-  :nsamps => 100
+  :nsamps => 100,
+  :type => :time
 }
 
 OP = OptionParser.new do |o|
@@ -28,6 +29,9 @@ OP = OptionParser.new do |o|
   o.on('-d', '--device=DEV', "Plot device to use [#{OPTS[:device]}]") do |o|
     OPTS[:device] = o
   end
+  o.on('-F', '--[no-]freq', "Plot frequency channels (-t freq)") do |o|
+    OPTS[:type] = :freq
+  end
   o.on('-l', '--length=N', Integer, "Number of samples to plot (1-1024) [#{OPTS[:nsamps]}]") do |o|
     if ! (1..1024) === o
       STDERR.puts 'length option must be between 1 and 1024, inclusive'
@@ -41,6 +45,9 @@ OP = OptionParser.new do |o|
     end
     OPTS[:nxy] = o.map {|s| Integer(s) rescue 2}
   end
+  o.on('-t', '--type={time|freq}', [:time, :freq], "Type of plot [#{OPTS[:type]}]") do |o|
+    OPTS[:type] = o
+  end
   o.on_tail("-h", "--help", "Show this message") do
     puts o
     exit 1
@@ -51,6 +58,13 @@ OP.parse!
 if ARGV.empty?
   STDERR.puts OP
   exit 1
+end
+
+begin
+  require 'gsl' unless OPTS[:type] == :time
+rescue LoadError
+  puts "error loading Ruby/GSL, reverting to time plot"
+  OPTS[:type] = :time
 end
 
 a = ADC16.new(ARGV[0])
@@ -92,8 +106,52 @@ plot=Plotter.new(OPTS)
 pgsch(2.0) if OPTS[:nx] * OPTS[:ny] > 2
 pgsch(2.5) if OPTS[:nx] * OPTS[:ny] > 6
 
-#TODO Support second ADC16 board
 CHIP_NAMES = ('A'..'H').to_a
+
+def plot_time(data, chip_num, chan)
+  plot(data,
+       :line => :stairs,
+       :title => "ADC Channel #{CHIP_NAMES[chip_num]}#{chan}",
+       :ylabel => 'ADC Sample Value',
+       :xlabel => 'Sample Number'
+      )
+end
+
+def plot_freq(data, chip_num, chan, opts={
+  :plot_max_line=>true,
+  :plot_fs4_line=>true
+})
+  spec_amp = data.to_gv.forward!.hc_amp_phase[0].abs
+
+  plot(spec_amp,
+       :line => :stairs,
+       :title => "ADC Channel #{chip.upcase}#{chan}",
+       :ylabel => 'Amplitude',
+       :xlabel => 'Frequency Channel'
+      )
+
+  # Plot a symbol a channel 0 to increase its visibility
+  pgpt1(0, spec_amp[0], Marker::CIRCLE)
+
+  pgsls(Line::DASHED)
+
+  if OPTS[:plot_max_line]
+    plot([0, OPTS[:nsamps]/2+1], [spec_amp.max]*2,
+         :line_color => Color::WHITE,
+         :overlay => true)
+  end
+
+  if OPTS[:plot_fs4_line]
+    fs_4 = OPTS[:nsamps]/4
+    # Plot marker at Fs/4 value to increase its visibility
+    pgpt1(fs_4, spec_amp[fs_4], Marker::CIRCLE)
+    plot([fs_4, fs_4], [0, spec_amp.max*2],
+         :line_color => Color::WHITE,
+         :overlay => true)
+  end
+
+  pgsls(Line::SOLID)
+end
 
 chips = chip_chans.keys.sort
 data = a.snap(*chips, :n => OPTS[:nsamps])
@@ -103,12 +161,10 @@ data = [data].flatten
 data.each_with_index do |chip_data, chips_idx|
   chip_num = chips[chips_idx]
   chip_chans[chip_num].each do |chan|
-    plot(chip_data[chan-1,nil],
-         :line => :stairs,
-         :title => "ADC Channel #{CHIP_NAMES[chip_num]}#{chan}",
-         :ylabel => 'ADC Sample Value',
-         :xlabel => 'Sample Number'
-        )
+    case OPTS[:type]
+    when :freq; plot_freq(chip_data[chan-1,nil], chip_num, chan)
+    else plot_time(chip_data[chan-1,nil], chip_num, chan)
+    end
   end
 end
 
