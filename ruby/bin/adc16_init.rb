@@ -46,7 +46,20 @@ a.progdev(bof)
 puts "Resetting ADC, power cycling ADC, and reprogramming FPGA..."
 a.adc_init
 
-# TODO Decode and print status bits
+# Decode and print status bits
+r2rev = a.roach2_rev
+nadcs = a.num_adcs
+locked = a.locked_status
+lock0  = (locked & 1) == 1
+lock1  = (locked & 2) == 2
+print "Design built for ROACH2 rev#{r2rev} with #{nadcs} ADCs"
+print ", ZDOK0 clock #{lock0 ? 'OK' : 'BAD'}"
+print ", ZDOK1 clock #{lock1 ? 'OK' : 'BAD'}" if nadcs > 4
+puts
+if !lock0 || (nadcs > 4 && !lock1)
+  puts "ADC clock(s) not locked, unable to proceed."
+  exit 1
+end
 
 puts "Calibrating SERDES blocks..."
 status = a.calibrate(OPTS)
