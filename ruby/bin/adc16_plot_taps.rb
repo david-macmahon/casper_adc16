@@ -10,6 +10,7 @@ require 'pgplot/plotter'
 include Pgplot
 
 OPTS = {
+  :chips => (:a..:h).to_a,
   :device => ENV['PGPLOT_DEV'] || '/xs',
   :nxy => [4,4],
   :verbose => false,
@@ -26,6 +27,9 @@ OP = OptionParser.new do |o|
   o.separator('Programs FPGA with BOF, if given.')
   o.separator('')
   o.separator 'Options:'
+  o.on('-c', '--chips=C,C,...', Array, "Which chips to plot [all]") do |o|
+    OPTS[:chips] = o
+  end
   o.on('-d', '--device=DEV', "Plot device to use [#{OPTS[:device]}]") do |o|
     OPTS[:device] = o
   end
@@ -57,6 +61,9 @@ if ARGV.empty?
 end
 
 a = ADC16.new(ARGV[0])
+
+# Limit chips to those supported by gateware
+OPTS[:chips].select! {|c| ADC16.chip_num(c) < a.num_adcs}
 
 if ARGV[1]
   puts "Programming FPGA with #{ARGV[1]}" if OPTS[:verbose]
@@ -119,7 +126,7 @@ pgsch(2.5) if OPTS[:nx] > 1 || OPTS[:ny] > 1
 
 puts 'Selecting ADC deskew pattern' if OPTS[:verbose]
 a.deskew_pattern
-['A', 'B', 'C', 'D'].each do |chip|
+OPTS[:chips].each do |chip|
   set_taps, counts = a.walk_taps(chip, OPTS)
   4.times do |chan|
     title2 = "ADC Channel #{chip}#{chan+1}"
