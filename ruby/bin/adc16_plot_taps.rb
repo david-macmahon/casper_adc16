@@ -18,38 +18,38 @@ OPTS = {
   :expected => 0x2a
 }
 
-OP = OptionParser.new do |o|
-  o.program_name = File.basename($0)
+OP = OptionParser.new do |op|
+  op.program_name = File.basename($0)
 
-  o.banner = "Usage: #{o.program_name} [OPTIONS] ROACH2_NAME [BOF]"
-  o.separator('')
-  o.separator('Plot error counts for various ADC16 delay tap settings.')
-  o.separator('Programs FPGA with BOF, if given.')
-  o.separator('')
-  o.separator 'Options:'
-  o.on('-c', '--chips=C,C,...', Array, "Which chips to plot [all]") do |o|
+  op.banner = "Usage: #{op.program_name} [OPTIONS] ROACH2_NAME [BOF]"
+  op.separator('')
+  op.separator('Plot error counts for various ADC16 delay tap settings.')
+  op.separator('Programs FPGA with BOF, if given.')
+  op.separator('')
+  op.separator 'Options:'
+  op.on('-c', '--chips=C,C,...', Array, "Which chips to plot [all]") do |o|
     OPTS[:chips] = o
   end
-  o.on('-d', '--device=DEV', "Plot device to use [#{OPTS[:device]}]") do |o|
+  op.on('-d', '--device=DEV', "Plot device to use [#{OPTS[:device]}]") do |o|
     OPTS[:device] = o
   end
-  o.on('-e', '--expected=N', "Expected value of deskew pattern [#{OPTS[:expected]}]") do |o|
+  op.on('-e', '--expected=N', "Expected value of deskew pattern [#{OPTS[:expected]}]") do |o|
     OPTS[:expected] = Integer(o) rescue OPTS[:expected]
   end
-  o.on('-i', '--iters=N', Integer, "Number of snaps per tap [#{OPTS[:num_iters]}]") do |o|
+  op.on('-i', '--iters=N', Integer, "Number of snaps per tap [#{OPTS[:num_iters]}]") do |o|
     OPTS[:num_iters] = o
   end
-  o.on('-n', '--nxy=NX,NY', Array, "Controls subplot layout [auto]") do |o|
+  op.on('-n', '--nxy=NX,NY', Array, "Controls subplot layout [auto]") do |o|
     if o.length != 2
       raise OptionParser::InvalidArgument.new('invalid NX,NY')
     end
     OPTS[:nxy] = o.map {|s| Integer(s) rescue 2}
   end
-  o.on('-v', '--[no-]verbose', "Display more info [#{OPTS[:verbose]}]") do
+  op.on('-v', '--[no-]verbose', "Display more info [#{OPTS[:verbose]}]") do
     OPTS[:verbose] = OPTS[:verbose] ? :very : true
   end
-  o.on_tail("-h", "--help", "Show this message") do
-    puts o
+  op.on_tail("-h", "--help", "Show this message") do
+    puts op
     exit 1
   end
 end

@@ -10,23 +10,23 @@ OPTS = {
   :num_iters => 4,
 }
 
-OP = OptionParser.new do |o|
-  o.program_name = File.basename($0)
+OP = OptionParser.new do |op|
+  op.program_name = File.basename($0)
 
-  o.banner = "Usage: #{o.program_name} [OPTIONS] ROACH2_NAME [BOF]"
-  o.separator('')
-  o.separator('Programs an ADC16-based design and calibrates the serdes receivers.')
-  o.separator("If BOF is not given, uses #{ADC16Test::DEFAULT_BOF}.")
-  o.separator('')
-  o.separator 'Options:'
-  o.on('-i', '--iters=N', Integer, "Number of snaps per tap [#{OPTS[:num_iters]}]") do |o|
+  op.banner = "Usage: #{op.program_name} [OPTIONS] ROACH2_NAME [BOF]"
+  op.separator('')
+  op.separator('Programs an ADC16-based design and calibrates the serdes receivers.')
+  op.separator("If BOF is not given, uses #{ADC16Test::DEFAULT_BOF}.")
+  op.separator('')
+  op.separator 'Options:'
+  op.on('-i', '--iters=N', Integer, "Number of snaps per tap [#{OPTS[:num_iters]}]") do |o|
     OPTS[:num_iters] = o
   end
-  o.on('-v', '--[no-]verbose', "Display more info [#{OPTS[:verbose]}]") do
+  op.on('-v', '--[no-]verbose', "Display more info [#{OPTS[:verbose]}]") do
     OPTS[:verbose] = OPTS[:verbose] ? :very : true
   end
-  o.on_tail("-h", "--help", "Show this message") do
-    puts o
+  op.on_tail("-h", "--help", "Show this message") do
+    puts op
     exit 1
   end
 end

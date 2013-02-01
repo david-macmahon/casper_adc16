@@ -10,29 +10,29 @@ OPTS = {
   :verbose => false
 }
 
-OP = OptionParser.new do |o|
-  o.program_name = File.basename($0)
+OP = OptionParser.new do |op|
+  op.program_name = File.basename($0)
 
-  o.banner = "Usage: #{o.program_name} [OPTIONS] ROACH2_NAME"
-  o.separator('')
-  o.separator('Dump samples from ADC16 test design')
-  o.separator('')
-  o.separator 'Options:'
-  o.on('-l', '--length=N', Integer, "Number of samples to dump per channel (1-1024) [#{OPTS[:nsamps]}]") do |o|
-    if ! (1..1024) === o
+  op.banner = "Usage: #{op.program_name} [OPTIONS] ROACH2_NAME"
+  op.separator('')
+  op.separator('Dump samples from ADC16 test design')
+  op.separator('')
+  op.separator 'Options:'
+  op.on('-l', '--length=N', Integer, "Number of samples to dump per channel (1-1024) [#{OPTS[:nsamps]}]") do |o|
+    if !((1..1024) === o)
       STDERR.puts 'length option must be between 1 and 1024, inclusive'
       exit 1
     end
     OPTS[:nsamps] = o
   end
-  o.on('-r', '--rms', "Output RMS of each channel instead of raw samples [#{OPTS[:rms]}]") do |o|
+  op.on('-r', '--rms', "Output RMS of each channel instead of raw samples [#{OPTS[:rms]}]") do |o|
     OPTS[:rms] = o
   end
-  o.on('-v', '--[no-]verbose', "Display more info [#{OPTS[:verbose]}]") do |o|
+  op.on('-v', '--[no-]verbose', "Display more info [#{OPTS[:verbose]}]") do |o|
     OPTS[:verbose] = o
   end
-  o.on_tail("-h", "--help", "Show this message") do
-    puts o
+  op.on_tail("-h", "--help", "Show this message") do
+    puts op
     exit 1
   end
 end

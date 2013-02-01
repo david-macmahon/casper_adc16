@@ -17,32 +17,32 @@ OPTS = {
   :plot_fs4_line => true
 }
 
-OP = OptionParser.new do |o|
-  o.program_name = File.basename($0)
+OP = OptionParser.new do |op|
+  op.program_name = File.basename($0)
 
-  o.banner = "Usage: #{o.program_name} [OPTIONS] ROACH2_NAME CHANSPEC"
-  o.separator('')
-  o.separator('Plot spectrum of a single ADC16 channel (a1, d4, etc.)')
-  o.separator('')
-  o.separator 'Options:'
-  o.on('-d', '--device=DEV', "Plot device to use [#{OPTS[:device]}]") do |o|
+  op.banner = "Usage: #{op.program_name} [OPTIONS] ROACH2_NAME CHANSPEC"
+  op.separator('')
+  op.separator('Plot spectrum of a single ADC16 channel (a1, d4, etc.)')
+  op.separator('')
+  op.separator 'Options:'
+  op.on('-d', '--device=DEV', "Plot device to use [#{OPTS[:device]}]") do |o|
     OPTS[:device] = o
   end
-  o.on('-l', '--length=N', Integer, "Number of samples to plot (1-1024) [#{OPTS[:nsamps]}]") do |o|
+  op.on('-l', '--length=N', Integer, "Number of samples to plot (1-1024) [#{OPTS[:nsamps]}]") do |o|
     if !((1..1024) === o)
       STDERR.puts 'length option must be between 1 and 1024, inclusive'
       exit 1
     end
     OPTS[:nsamps] = o
   end
-  o.on('-n', '--nxy=NX,NY', Array, "Controls subplot layout [#{OPTS[:nxy].join(',')}]") do |o|
+  op.on('-n', '--nxy=NX,NY', Array, "Controls subplot layout [#{OPTS[:nxy].join(',')}]") do |o|
     if o.length != 2
       raise OptionParser::InvalidArgument.new('invalid NX,NY')
     end
     OPTS[:nxy] = o.map {|s| Integer(s) rescue 2}
   end
-  o.on_tail("-h", "--help", "Show this message") do
-    puts o
+  op.on_tail("-h", "--help", "Show this message") do
+    puts op
     exit 1
   end
 end

@@ -15,41 +15,41 @@ OPTS = {
   :type => :time
 }
 
-OP = OptionParser.new do |o|
-  o.program_name = File.basename($0)
+OP = OptionParser.new do |op|
+  op.program_name = File.basename($0)
 
-  o.banner = "Usage: #{o.program_name} [OPTIONS] ROACH2_NAME"
-  o.separator('')
-  o.separator('Plot time series ADC16 channels')
-  o.separator('')
-  o.separator 'Options:'
-  o.on('-c', '--chans=CN,CN,...', Array, "Which channels to plot [all]") do |o|
+  op.banner = "Usage: #{op.program_name} [OPTIONS] ROACH2_NAME"
+  op.separator('')
+  op.separator('Plot time series ADC16 channels')
+  op.separator('')
+  op.separator 'Options:'
+  op.on('-c', '--chans=CN,CN,...', Array, "Which channels to plot [all]") do |o|
     OPTS[:chans] = o
   end
-  o.on('-d', '--device=DEV', "Plot device to use [#{OPTS[:device]}]") do |o|
+  op.on('-d', '--device=DEV', "Plot device to use [#{OPTS[:device]}]") do |o|
     OPTS[:device] = o
   end
-  o.on('-F', '--[no-]freq', "Plot frequency channels (-t freq)") do |o|
+  op.on('-F', '--[no-]freq', "Plot frequency channels (-t freq)") do |o|
     OPTS[:type] = :freq
   end
-  o.on('-l', '--length=N', Integer, "Number of samples to plot (1-1024) [#{OPTS[:nsamps]}]") do |o|
+  op.on('-l', '--length=N', Integer, "Number of samples to plot (1-1024) [#{OPTS[:nsamps]}]") do |o|
     if !((1..1024) === o)
       STDERR.puts 'length option must be between 1 and 1024, inclusive'
       exit 1
     end
     OPTS[:nsamps] = o
   end
-  o.on('-n', '--nxy=NX,NY', Array, "Controls subplot layout [auto]") do |o|
+  op.on('-n', '--nxy=NX,NY', Array, "Controls subplot layout [auto]") do |o|
     if o.length != 2
       raise OptionParser::InvalidArgument.new('invalid NX,NY')
     end
     OPTS[:nxy] = o.map {|s| Integer(s) rescue 2}
   end
-  o.on('-t', '--type={time|freq}', [:time, :freq], "Type of plot [#{OPTS[:type]}]") do |o|
+  op.on('-t', '--type={time|freq}', [:time, :freq], "Type of plot [#{OPTS[:type]}]") do |o|
     OPTS[:type] = o
   end
-  o.on_tail("-h", "--help", "Show this message") do
-    puts o
+  op.on_tail("-h", "--help", "Show this message") do
+    puts op
     exit 1
   end
 end
