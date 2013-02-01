@@ -67,6 +67,9 @@ if ARGV[1]
   a.progdev ARGV[1]
   puts 'Initializing ADC' if OPTS[:verbose]
   a.adc_init
+elsif ! (a.programmed? && a.listdev.grep('adc16_controller').any?)
+  puts "#{ARGV[0]} is not programmed with an ADC16 design."
+  exit 1
 end
 
 # Limit chips to those supported by gateware
