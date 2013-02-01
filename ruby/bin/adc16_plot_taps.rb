@@ -62,11 +62,25 @@ end
 
 a = ADC16.new(ARGV[0])
 
+# If BOF file given
 if ARGV[1]
   puts "Programming FPGA with #{ARGV[1]}" if OPTS[:verbose]
   a.progdev ARGV[1]
+  # Verify that programming succeeded
+  if ! a.programmed?
+    puts "error programming #{ARGV[0]} with #{ARGV[1]}"
+    exit 1
+  end
+  # Verify that given design is ADC16-based
+  if ! a.listdev.grep('adc16_controller').any?
+    puts "Programmed #{ARGV[0]} with #{ARGV[1]}, but it is not an ADC16-based design."
+    exit1
+  end
+  # Initialize ADC
   puts 'Initializing ADC' if OPTS[:verbose]
   a.adc_init
+
+# Else BOF file not given, verify host is already programmed with ADC16 design.
 elsif ! (a.programmed? && a.listdev.grep('adc16_controller').any?)
   puts "#{ARGV[0]} is not programmed with an ADC16 design."
   exit 1
