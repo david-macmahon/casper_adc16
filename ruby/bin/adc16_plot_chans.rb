@@ -33,7 +33,7 @@ OP = OptionParser.new do |o|
     OPTS[:type] = :freq
   end
   o.on('-l', '--length=N', Integer, "Number of samples to plot (1-1024) [#{OPTS[:nsamps]}]") do |o|
-    if ! (1..1024) === o
+    if !((1..1024) === o)
       STDERR.puts 'length option must be between 1 and 1024, inclusive'
       exit 1
     end
