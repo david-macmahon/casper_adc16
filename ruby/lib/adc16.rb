@@ -150,6 +150,12 @@ class ADC16 < KATCP::RoachClient
     end
   end
 
+  # Returns name of chip given by +chip_spec+.  See #chip_num for allowable
+  # +chip_spec+ values.
+  def self.chip_name(chip_spec)
+    ('A'.ord + chip_num(chip_spec)).chr
+  end
+
   # Returns chip name and channel number for +chan_name+, which must be a two
   # character String or Symbol whose first character is in the range A-H (or
   # a-h) and whose second character is in the range 1-4.  For example, "A1"
@@ -468,7 +474,7 @@ class ADC16 < KATCP::RoachClient
     chan_counts_0  = test_tap(chip,  0, opts)
     chan_counts_31 = test_tap(chip, 31, opts)
     if [chan_counts_0, chan_counts_31].flatten.index(0)
-      puts "bitslipping chip #{chip} to sample eye pattern better" if opts[:verbose]
+      puts "bitslipping chip #{ADC16.chip_name(chip)} to sample eye pattern better" if opts[:verbose]
       bitslip(chip)
     end
 
@@ -493,18 +499,21 @@ class ADC16 < KATCP::RoachClient
     4.times do |chan|
       2.times do |lane|
         good_chan_taps = good_taps[chan][lane]
-        next if good_chan_taps.empty? # uh-oh...
+        if good_chan_taps.empty?
+          puts "chip #{ADC16.chip_name(chip)} chan #{chan} lane #{lane} no good taps found" if opts[:verbose]
+          next
+        end
         # Detect case where good tap values "wrap around"
         # (might break for slow sample clocks).
         if good_chan_taps.max - good_chan_taps.min > 16
-          puts "chip #{chip} chan #{chan} lane #{lane} good tap range too large" if opts[:verbose]
+          puts "chip #{ADC16.chip_name(chip)} chan #{chan} lane #{lane} good tap range too large" if opts[:verbose]
           set_taps[chan][lane] = nil
           next
         end
         best_chan_tap = good_chan_taps[good_chan_taps.length/2]
         next if best_chan_tap.nil?  # TODO Warn or raise exception?
         delay_tap(chip, best_chan_tap, 1<<(chan+4*lane))
-        puts "chip #{chip} chan #{chan} lane #{lane} setting tap=#{best_chan_tap}" if opts[:verbose]
+        puts "chip #{ADC16.chip_name(chip)} chan #{chan} lane #{lane} setting tap=#{best_chan_tap}" if opts[:verbose]
         set_taps[chan][lane] = best_chan_tap
       end
     end
@@ -542,9 +551,10 @@ class ADC16 < KATCP::RoachClient
     # Make sure opts[:chips] is an Array (and allow :chip to override :chips)
     opts[:chips] = [opts[:chip]||opts[:chips]]
     opts[:chips].flatten!
-    # Convert to chip numbers (and reject those that are not supported/used
-    opts[:chips].map! {|c| c=ADC16.chip_num(c); c < num_adcs ? c : nil}
-    opts[:chips].compact!
+    # Select only those chips that are not supported/used
+    opts[:chips].select! {|c| ADC16.chip_num(c) < num_adcs}
+    # Convert to chip names
+    opts[:chips].map! {|c| ADC16.chip_name(c)}
     puts "calibrating chips #{opts[:chips].inspect}" if opts[:verbose]
 
     # Create :expected alias for :deskew_expected so that opts can be passed to walk_taps

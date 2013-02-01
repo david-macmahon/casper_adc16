@@ -125,12 +125,12 @@ def plot_freq(data, chip_num, chan, opts={
 
   plot(spec_amp,
        :line => :stairs,
-       :title => "ADC Channel #{chip.upcase}#{chan}",
+       :title => "ADC Channel #{ADC16.chip_name(chip_num)}#{chan}",
        :ylabel => 'Amplitude',
        :xlabel => 'Frequency Channel'
       )
 
-  # Plot a symbol a channel 0 to increase its visibility
+  # Plot a symbol at channel 0 to increase its visibility
   pgpt1(0, spec_amp[0], Marker::CIRCLE)
 
   pgsls(Line::DASHED)

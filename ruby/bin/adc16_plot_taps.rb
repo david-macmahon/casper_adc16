@@ -157,7 +157,7 @@ a.deskew_pattern
 OPTS[:chips].each do |chip|
   set_taps, counts = a.walk_taps(chip, OPTS)
   4.times do |chan|
-    title2 = "ADC Channel #{chip}#{chan+1}"
+    title2 = "ADC Channel #{ADC16.chip_name(chip)}#{chan+1}"
     title2 += " (#{OPTS[:num_iters]} iters)" if OPTS[:num_iters] != 1
     plot_counts(counts[chan], :title2 => title2, :set_taps => set_taps[chan])
   end

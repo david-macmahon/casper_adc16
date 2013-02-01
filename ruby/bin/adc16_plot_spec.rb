@@ -62,8 +62,6 @@ OPTS[:nx], OPTS[:ny] = OPTS[:nxy]
 plot=Plotter.new(OPTS)
 pgsch(2.5) if OPTS[:nx] > 1 || OPTS[:ny] > 1
 
-CHIPS = ['A', 'B', 'C', 'D']
-
 #100.times do
   data = a.snap(chip, :n => OPTS[:nsamps])
 
