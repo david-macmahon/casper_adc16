@@ -62,6 +62,13 @@ end
 
 a = ADC16.new(ARGV[0])
 
+if ARGV[1]
+  puts "Programming FPGA with #{ARGV[1]}" if OPTS[:verbose]
+  a.progdev ARGV[1]
+  puts 'Initializing ADC' if OPTS[:verbose]
+  a.adc_init
+end
+
 # Limit chips to those supported by gateware
 OPTS[:chips].select! {|c| ADC16.chip_num(c) < a.num_adcs}
 
@@ -74,13 +81,6 @@ else
                          when 3; [4, 3]
                          else; [4, 4]
                          end
-end
-
-if ARGV[1]
-  puts "Programming FPGA with #{ARGV[1]}" if OPTS[:verbose]
-  a.progdev ARGV[1]
-  puts 'Initializing ADC' if OPTS[:verbose]
-  a.adc_init
 end
 
 def plot_counts(counts, plotopts={})
