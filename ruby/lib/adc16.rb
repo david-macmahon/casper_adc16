@@ -230,7 +230,15 @@ class ADC16 < KATCP::RoachClient
   # Performs a power cycle of all ADCs selected by +chip_select+.
   def adc_power_cycle
     setreg(0x0f, 0x0200) # Powerdown
-    setreg(0x0f, 0x0000) # Powerup
+    # Power up one chip at a time
+    cs_orig = @chip_select
+    num_adcs.times do |i|
+      next unless (cs_orig & (1<<i)) != 0
+      @chip_select = (1<<i)
+      setreg(0x0f, 0x0000) # Powerup
+    end
+    # Restore original cs value
+    @chip_select = cs_orig
   end
 
   # Initializes the ADCs that are enabled by +chip_select+.  The +opts+ Hash
