@@ -6,6 +6,7 @@ require 'adc16/test'
 
 raise "\nusage: #{File.basename $0} R2HOSTNAME [BOF]" unless ARGV[0]
 OPTS = {
+  :init_regs => {},
   :verbose => false,
   :num_iters => 4,
 }
@@ -21,6 +22,13 @@ OP = OptionParser.new do |op|
   op.separator 'Options:'
   op.on('-i', '--iters=N', Integer, "Number of snaps per tap [#{OPTS[:num_iters]}]") do |o|
     OPTS[:num_iters] = o
+  end
+  op.on('-r', '--reg=R1=V1[,R2=V2...]', Array, 'Register addr=value pairs to set') do |o|
+    o.each do |rv|
+      reg, val = rv.split('=').map {|s| Integer(s)}
+      next unless val
+      OPTS[:init_regs][reg] = val
+    end
   end
   op.on('-v', '--[no-]verbose', "Display more info [#{OPTS[:verbose]}]") do
     OPTS[:verbose] = OPTS[:verbose] ? :very : true
@@ -44,7 +52,7 @@ puts "Programming #{ARGV[0]} with #{bof}..."
 a.progdev(bof)
 
 puts "Resetting ADC, power cycling ADC, and reprogramming FPGA..."
-a.adc_init
+a.adc_init(OPTS[:init_regs])
 
 # Decode and print status bits
 r2rev = a.roach2_rev
