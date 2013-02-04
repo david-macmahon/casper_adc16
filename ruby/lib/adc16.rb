@@ -508,20 +508,28 @@ class ADC16 < KATCP::RoachClient
       2.times do |lane|
         good_chan_taps = good_taps[chan][lane]
         if good_chan_taps.empty?
-          puts "chip #{ADC16.chip_name(chip)} chan #{chan} lane #{lane} no good taps found" if opts[:verbose]
+          puts "chip #{ADC16.chip_name(chip)} " \
+               "chan #{chan+1} lane #{lane} "   \
+               "no good taps found" if opts[:verbose]
           next
         end
         # Detect case where good tap values "wrap around"
         # (might break for slow sample clocks).
         if good_chan_taps.max - good_chan_taps.min > 16
-          puts "chip #{ADC16.chip_name(chip)} chan #{chan} lane #{lane} good tap range too large" if opts[:verbose]
+          puts "chip #{ADC16.chip_name(chip)} " \
+               "chan #{chan+1} lane #{lane} "   \
+               "good tap range too large "      \
+               "#{good_chan_taps.inspect}" if opts[:verbose]
           set_taps[chan][lane] = nil
           next
         end
         best_chan_tap = good_chan_taps[good_chan_taps.length/2]
         next if best_chan_tap.nil?  # TODO Warn or raise exception?
         delay_tap(chip, best_chan_tap, 1<<(chan+4*lane))
-        puts "chip #{ADC16.chip_name(chip)} chan #{chan} lane #{lane} setting tap=#{best_chan_tap}" if opts[:verbose]
+        puts "chip #{ADC16.chip_name(chip)} "   \
+             "chan #{chan+1} lane #{lane} "     \
+             "setting tap=#{best_chan_tap} "    \
+             "from #{good_chan_taps.inspect}" if opts[:verbose]
         set_taps[chan][lane] = best_chan_tap
       end
     end
