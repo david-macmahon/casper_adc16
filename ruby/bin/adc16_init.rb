@@ -4,7 +4,6 @@ require 'rubygems'
 require 'optparse'
 require 'adc16/test'
 
-raise "\nusage: #{File.basename $0} R2HOSTNAME [BOF]" unless ARGV[0]
 OPTS = {
   :init_regs => {},
   :verbose => false,
