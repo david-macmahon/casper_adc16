@@ -515,7 +515,7 @@ class ADC16 < KATCP::RoachClient
         end
         # Detect case where good tap values "wrap around"
         # (might break for slow sample clocks).
-        if good_chan_taps.max - good_chan_taps.min > 16
+        if good_chan_taps.max - good_chan_taps.min > 24
           puts "chip #{ADC16.chip_name(chip)} " \
                "chan #{chan+1} lane #{lane} "   \
                "good tap range too large "      \
