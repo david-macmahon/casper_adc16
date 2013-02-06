@@ -44,22 +44,21 @@ if ARGV.empty?
 end
 
 def dump_samples(data)
-  fmt = (['%4d'] * 16).join(' ') + "\n"
+  fmt = '%4d %4d %4d %4d'
   tic = Time.now
   OPTS[:nsamps].times do |i|
-    printf(fmt,
-           data[0][0,i], data[0][1,i], data[0][2,i], data[0][3,i],
-           data[1][0,i], data[1][1,i], data[1][2,i], data[1][3,i],
-           data[2][0,i], data[2][1,i], data[2][2,i], data[2][3,i],
-           data[3][0,i], data[3][1,i], data[3][2,i], data[3][3,i],
-          )
+    data.each_with_index do |d, j|
+      print ' ' if j > 0
+      printf(fmt, data[j][0,i], data[j][1,i], data[j][2,i], data[j][3,i])
+    end
+    puts
   end
   toc = Time.now
   $stderr.puts "data dump took #{toc-tic} seconds" if OPTS[:verbose]
 end
 
 def dump_rms(data)
-  fmt = (['%4.1f'] * 16).join(' ') + "\n"
+  fmt = (['%4.1f'] * (4*data.length)).join(' ') + "\n"
   rms = data.map {|na| na.rms(1).to_a}
   rms.flatten!
   printf(fmt, *rms)
@@ -68,8 +67,7 @@ end
 a = ADC16.new(ARGV[0])
 
 tic = Time.now
-# TODO Snap all chips available (e.g. both ADC16 boards)
-data = a.snap(:a, :b, :c, :d, :n => OPTS[:nsamps])
+data = a.snap(*(0...a.num_adcs).to_a, :n => OPTS[:nsamps])
 toc = Time.now
 $stderr.puts "data snap took #{toc-tic} seconds" if OPTS[:verbose]
 
