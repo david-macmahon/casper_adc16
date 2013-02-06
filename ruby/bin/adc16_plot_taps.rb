@@ -74,7 +74,7 @@ if ARGV[1]
   # Verify that given design is ADC16-based
   if ! a.listdev.grep('adc16_controller').any?
     puts "Programmed #{ARGV[0]} with #{ARGV[1]}, but it is not an ADC16-based design."
-    exit1
+    exit 1
   end
   # Initialize ADC
   puts 'Initializing ADC' if OPTS[:verbose]
