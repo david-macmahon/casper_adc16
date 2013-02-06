@@ -5,7 +5,7 @@ require 'optparse'
 require 'adc16'
 
 OPTS = {
-  :nsamps => (1<<16),
+  :nsamps => 1024,
   :rms => false,
   :verbose => false
 }
