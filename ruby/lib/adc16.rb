@@ -582,7 +582,10 @@ class ADC16 < KATCP::RoachClient
     warn 'warning: ADC1 clock not locked' if (locked_status&2) == 0 && num_adcs > 4
 
     # Walk delay taps (sets deskew pattern)
-    opts[:chips].each {|chip| walk_taps(chip, opts)}
+    opts[:chips].each do |chip|
+      walk_taps(chip, opts)
+      yield ADC16.chip_name(chip) if block_given?
+    end
 
     # Set sync pattern
     sync_pattern
