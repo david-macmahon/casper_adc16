@@ -50,17 +50,30 @@ a = ADC16.new(ARGV[0], :bof => bof)
 puts "Programming #{ARGV[0]} with #{bof}..."
 a.progdev(bof)
 
+# Verify that programming succeeded
+if ! a.programmed?
+  puts "error programming #{ARGV[0]} with #{bof}"
+  exit 1
+end
+# Verify that given design is ADC16-based
+if ! a.listdev.grep('adc16_controller').any?
+  puts "Programmed #{ARGV[0]} with #{bof}, but it is not an ADC16-based design."
+  exit 1
+end
+
+# Decode and print build info bits
+r2rev = a.roach2_rev
+nadcs = a.num_adcs
+puts "Design built for ROACH2 rev#{r2rev} with #{nadcs} ADCs"
+
 puts "Resetting ADC, power cycling ADC, and reprogramming FPGA..."
 a.adc_init(OPTS[:init_regs])
 
-# Decode and print status bits
-r2rev = a.roach2_rev
-nadcs = a.num_adcs
+# Decode and print clock status bits
 locked = a.locked_status
 lock0  = (locked & 1) == 1
 lock1  = (locked & 2) == 2
-print "Design built for ROACH2 rev#{r2rev} with #{nadcs} ADCs"
-print ", ZDOK0 clock #{lock0 ? 'OK' : 'BAD'}"
+print   "ZDOK0 clock #{lock0 ? 'OK' : 'BAD'}"
 print ", ZDOK1 clock #{lock1 ? 'OK' : 'BAD'}" if nadcs > 4
 puts
 if !lock0 || (nadcs > 4 && !lock1)
