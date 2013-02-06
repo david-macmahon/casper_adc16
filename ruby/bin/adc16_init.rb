@@ -7,7 +7,7 @@ require 'adc16/test'
 OPTS = {
   :init_regs => {},
   :verbose => false,
-  :num_iters => 4,
+  :num_iters => 1,
 }
 
 OP = OptionParser.new do |op|
