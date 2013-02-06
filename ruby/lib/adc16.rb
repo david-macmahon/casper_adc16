@@ -153,7 +153,7 @@ class ADC16 < KATCP::RoachClient
   # Returns name of chip given by +chip_spec+.  See #chip_num for allowable
   # +chip_spec+ values.
   def self.chip_name(chip_spec)
-    ('A'.ord + chip_num(chip_spec)).chr
+    (?A.ord + chip_num(chip_spec)).chr
   end
 
   # Returns chip name and channel number for +chan_name+, which must be a two
