@@ -104,7 +104,6 @@ def plot_counts(counts, plotopts={})
   plotopts = {
     :line => :line,
     :marker => Marker::STAR,
-    :title => 'Error Counts vs Delay Tap',
     :ylabel => 'log2(err_count+1)',
     :xlabel => 'Delay Tap Value',
     :line_color_a => Color::BLUE,
@@ -157,9 +156,12 @@ a.deskew_pattern
 OPTS[:chips].each do |chip|
   set_taps, counts = a.walk_taps(chip, OPTS)
   4.times do |chan|
-    title2 = "ADC Channel #{ADC16.chip_name(chip)}#{chan+1}"
-    title2 += " (#{OPTS[:num_iters]} iters)" if OPTS[:num_iters] != 1
-    plot_counts(counts[chan], :title2 => title2, :set_taps => set_taps[chan])
+    title  = "#{ADC16.chip_name(chip)}#{chan+1} Error Counts vs Delay Tap"
+    title2 = "#{512*OPTS[:num_iters]} samples/lane"
+    plot_counts(counts[chan],
+                :title  => title,
+                :title2 => title2,
+                :set_taps => set_taps[chan])
   end
 end
 puts 'Selecting ADC analog inputs' if OPTS[:verbose]
