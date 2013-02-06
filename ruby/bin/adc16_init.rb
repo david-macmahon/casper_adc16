@@ -81,8 +81,10 @@ if !lock0 || (nadcs > 4 && !lock1)
   exit 1
 end
 
-puts "Calibrating SERDES blocks..."
-status = a.calibrate(OPTS)
+print "Calibrating SERDES blocks..."
+status = a.calibrate(OPTS) {|chip| print chip}
+puts
+
 # If any status is false
 if status.index(false)
   ('A'..'H').each_with_index do |adc, i|
