@@ -82,7 +82,7 @@ if !lock0 || (nadcs > 4 && !lock1)
 end
 
 print "Calibrating SERDES blocks..."
-status = a.calibrate(OPTS) {|chip| print chip}
+status = a.calibrate(OPTS) {|chip| print chip unless OPTS[:verbose]}
 puts
 
 # If any status is false
