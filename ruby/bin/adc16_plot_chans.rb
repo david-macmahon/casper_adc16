@@ -12,6 +12,7 @@ OPTS = {
   :nxy => nil,
   :ask => true,
   :nsamps => 100,
+  :test => false,
   :type => :time
 }
 
@@ -20,7 +21,8 @@ OP = OptionParser.new do |op|
 
   op.banner = "Usage: #{op.program_name} [OPTIONS] ROACH2_NAME"
   op.separator('')
-  op.separator('Plot time series ADC16 channels')
+  op.separator('Plot time series ADC16 channels.')
+  op.separator('Lengths between 1025 and 65536 requires the adc16_test design.')
   op.separator('')
   op.separator 'Options:'
   op.on('-c', '--chans=CN,CN,...', Array, "Which channels to plot [all]") do |o|
@@ -32,9 +34,11 @@ OP = OptionParser.new do |op|
   op.on('-F', '--[no-]freq', "Plot frequency channels (-t freq)") do |o|
     OPTS[:type] = :freq
   end
-  op.on('-l', '--length=N', Integer, "Number of samples to plot (1-1024) [#{OPTS[:nsamps]}]") do |o|
-    if !((1..1024) === o)
-      STDERR.puts 'length option must be between 1 and 1024, inclusive'
+  op.on('-l', '--length=N', Integer, "Number of samples to plot per channel (1-65536) [#{OPTS[:nsamps]}]") do |o|
+    if (1025..65536) === o
+      OPTS[:test] = true
+    elsif ! ((1..1024) === o)
+      STDERR.puts 'length option must be between 1 and 65536, inclusive'
       exit 1
     end
     OPTS[:nsamps] = o
@@ -60,6 +64,17 @@ if ARGV.empty?
   exit 1
 end
 
+if OPTS[:test]
+  require 'adc16/test'
+  adc16_class = ADC16Test
+  snap_method = :snap_test
+  device_check = 'snap_a_bram'
+else
+  adc16_class = ADC16
+  snap_method = :snap
+  device_check = 'adc16_controller'
+end
+
 begin
   require 'gsl' unless OPTS[:type] == :time
 rescue LoadError
@@ -67,7 +82,16 @@ rescue LoadError
   OPTS[:type] = :time
 end
 
-a = ADC16.new(ARGV[0])
+a = adc16_class.new(ARGV[0])
+
+# Verify suitability of current design
+if !a.programmed?
+  $stderr.puts 'FPGA not programmed'
+  exit 1
+elsif a.listdev.grep(device_check).empty?
+  $stderr.puts "FPGA is not programmed with an appropriate #{adc16_class} design"
+  exit 1
+end
 
 # Chip chans will contain chip numbers for keys whose corresponding value is an
 # Array of channels to plot for that chip.
@@ -154,7 +178,7 @@ def plot_freq(data, chip_num, chan, opts={
 end
 
 chips = chip_chans.keys.sort
-data = a.snap(*chips, :n => OPTS[:nsamps])
+data = a.send(snap_method, *chips, :n => OPTS[:nsamps])
 # Make sure data is an array of NArrays, even if only one element
 data = [data].flatten
 # Plot data
