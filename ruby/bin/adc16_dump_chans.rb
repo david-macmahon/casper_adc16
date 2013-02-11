@@ -81,7 +81,7 @@ end
 
 a = adc16_class.new(ARGV[0])
 
-# Verify suitability of curret design
+# Verify suitability of current design
 if !a.programmed?
   $stderr.puts 'FPGA not programmed'
   exit 1
