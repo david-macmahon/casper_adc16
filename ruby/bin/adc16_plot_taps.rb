@@ -6,7 +6,14 @@ require 'optparse'
 
 require 'narray'
 require 'adc16'
-require 'pgplot/plotter'
+
+begin
+  require 'pgplot/plotter'
+rescue LoadError
+  $stderr.puts 'Unable to load the pgplotter gem.'
+  $stderr.puts 'You can install it by running "gem install pgplotter".'
+  exit 1
+end
 include Pgplot
 
 OPTS = {
