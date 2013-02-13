@@ -12,6 +12,7 @@ OPTS = {
   :nxy => nil,
   :ask => true,
   :nsamps => 100,
+  :stats => false,
   :test => false,
   :type => :time
 }
@@ -49,6 +50,9 @@ OP = OptionParser.new do |op|
     end
     OPTS[:nxy] = o.map {|s| Integer(s) rescue 2}
   end
+  op.on('-s', '--[no-]stats', "Include stats in plot titles [#{OPTS[:stats]}]") do |o|
+    OPTS[:stats] = o
+  end
   op.on('-t', '--type={time|freq}', [:time, :freq], "Type of plot [#{OPTS[:type]}]") do |o|
     OPTS[:type] = o
   end
@@ -73,6 +77,12 @@ else
   adc16_class = ADC16
   snap_method = :snap
   device_check = 'adc16_controller'
+end
+
+# Workaround Ruby/GSL limitation that half-complex
+# form requires even number of data points.
+if OPTS[:type] == :freq && OPTS[:nsamps] % 2 == 1
+  OPTS[:nsamps] += 1
 end
 
 begin
@@ -133,9 +143,16 @@ pgsch(2.5) if OPTS[:nx] * OPTS[:ny] > 6
 CHIP_NAMES = ('A'..'H').to_a
 
 def plot_time(data, chip_num, chan)
+  title2 = ''
+  if OPTS[:stats]
+    title2 = sprintf('min=%d mean=%.3f rms=%.3f max=%d',
+      data.min, data.mean, data.rms, data.max)
+  end
+
   plot(data,
        :line => :stairs,
        :title => "ADC Channel #{CHIP_NAMES[chip_num]}#{chan}",
+       :title2 => title2,
        :ylabel => 'ADC Sample Value',
        :xlabel => 'Sample Number'
       )
@@ -145,11 +162,19 @@ def plot_freq(data, chip_num, chan, opts={
   :plot_max_line=>true,
   :plot_fs4_line=>true
 })
-  spec_amp = data.to_gv.forward!.hc_amp_phase[0].abs
+  spec_amp = data.to_gv.forward!.hc_amp_phase[0].abs / Math.sqrt(data.length)
+
+  title2 = ''
+  if OPTS[:stats]
+    fdata = spec_amp.to_na
+    title2 = sprintf('min=%.3f mean=%.3f rms=%.3f max=%.3f',
+      fdata.min, fdata.mean, fdata.rms, fdata.max)
+  end
 
   plot(spec_amp,
        :line => :stairs,
        :title => "ADC Channel #{ADC16.chip_name(chip_num)}#{chan}",
+       :title2 => title2,
        :ylabel => 'Amplitude',
        :xlabel => 'Frequency Channel'
       )
