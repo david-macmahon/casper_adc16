@@ -3,7 +3,7 @@ require 'adc16'
 # Class for communicating with snap and trig blocks of adc16_test model.
 class ADC16Test < ADC16
 
-  DEFAULT_BOF = 'adc16_test_rev1x8.bof'
+  DEFAULT_BOF = 'adc16_test_rev2x8.bof'
 
   # Class for manipulating histogram devices of adc16_test design
   class Histo
