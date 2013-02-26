@@ -66,7 +66,15 @@ r2rev = a.roach2_rev
 nadcs = a.num_adcs
 puts "Design built for ROACH2 rev#{r2rev} with #{nadcs} ADCs"
 
-puts "Resetting ADC, power cycling ADC, and reprogramming FPGA..."
+# Prent user-requested register settings
+OPTS[:init_regs].keys.sort.each do |reg|
+  val = OPTS[:init_regs][reg]
+  printf "Will set ADC register 0x%02x to 0x%04x\n", reg, val
+end
+
+print "Resetting ADC, "
+print "setting registers, " unless OPTS[:init_regs].empty?
+puts  "power cycling ADC, and reprogramming FPGA..."
 a.adc_init(OPTS[:init_regs])
 
 # Decode and print clock status bits
