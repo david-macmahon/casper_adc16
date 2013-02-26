@@ -18,9 +18,12 @@ class ADC16Test < ADC16
     end
 
     def histo
-      d0 = @katcp_client.read("#{@device_stem}_0", 0, 1024).reshape(256,4).sum(1)
-      d4 = @katcp_client.read("#{@device_stem}_4", 0, 1024).reshape(256,4).sum(1)
-      d0.add!(d4)
+      d0 = @katcp_client.read("#{@device_stem}_0", 0, 1024).reshape(256,4)
+      d4 = @katcp_client.read("#{@device_stem}_4", 0, 1024).reshape(256,4)
+      # Convert to double precision float, unsigned, and then sum
+      h  = d0.to_type(NArray::FLOAT).add!(2**31).mod!(2**32).sum(1)
+      h += d4.to_type(NArray::FLOAT).add!(2**31).mod!(2**32).sum(1)
+      h
     end
   end
 
