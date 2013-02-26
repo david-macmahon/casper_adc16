@@ -5,6 +5,25 @@ class ADC16Test < ADC16
 
   DEFAULT_BOF = 'adc16_test_rev1x8.bof'
 
+  # Class for manipulating histogram devices of adc16_test design
+  class Histo
+    def initialize(katcp_client, device_name)
+      @katcp_client = katcp_client
+      @device_stem = device_name.sub(/_[04]$/, '')
+    end
+
+    def clear
+      @katcp_client.write("#{@device_stem}_0", 0, NArray.int(1024))
+      @katcp_client.write("#{@device_stem}_4", 0, NArray.int(1024))
+    end
+
+    def histo
+      d0 = @katcp_client.read("#{@device_stem}_0", 0, 1024).reshape(256,4).sum(1)
+      d4 = @katcp_client.read("#{@device_stem}_4", 0, 1024).reshape(256,4).sum(1)
+      d0.add!(d4)
+    end
+  end
+
   # Sets a default BOF file to DEFAULT_BOF if none passed in by caller.
   def initialize(*args)
     super(*args)
@@ -14,6 +33,72 @@ class ADC16Test < ADC16
   # Map device names to device types.  OK to list devices that may not be
   # present.
   DEVICE_TYPEMAP = {
+    #:histo_a1_0    => :bram,
+    :histo_a1_0    => [Histo, :histo_a1],
+    :histo_a1_4    => :skip,
+    :histo_a2_0    => [Histo, :histo_a2],
+    :histo_a2_4    => :skip,
+    :histo_a3_0    => [Histo, :histo_a3],
+    :histo_a3_4    => :skip,
+    :histo_a4_0    => [Histo, :histo_a4],
+    :histo_a4_4    => :skip,
+    :histo_b1_0    => [Histo, :histo_b1],
+    :histo_b1_4    => :skip,
+    :histo_b2_0    => [Histo, :histo_b2],
+    :histo_b2_4    => :skip,
+    :histo_b3_0    => [Histo, :histo_b3],
+    :histo_b3_4    => :skip,
+    :histo_b4_0    => [Histo, :histo_b4],
+    :histo_b4_4    => :skip,
+    :histo_c1_0    => [Histo, :histo_c1],
+    :histo_c1_4    => :skip,
+    :histo_c2_0    => [Histo, :histo_c2],
+    :histo_c2_4    => :skip,
+    :histo_c3_0    => [Histo, :histo_c3],
+    :histo_c3_4    => :skip,
+    :histo_c4_0    => [Histo, :histo_c4],
+    :histo_c4_4    => :skip,
+    :histo_d1_0    => [Histo, :histo_d1],
+    :histo_d1_4    => :skip,
+    :histo_d2_0    => [Histo, :histo_d2],
+    :histo_d2_4    => :skip,
+    :histo_d3_0    => [Histo, :histo_d3],
+    :histo_d3_4    => :skip,
+    :histo_d4_0    => [Histo, :histo_d4],
+    :histo_d4_4    => :skip,
+    :histo_e1_0    => [Histo, :histo_e1],
+    :histo_e1_4    => :skip,
+    :histo_e2_0    => [Histo, :histo_e2],
+    :histo_e2_4    => :skip,
+    :histo_e3_0    => [Histo, :histo_e3],
+    :histo_e3_4    => :skip,
+    :histo_e4_0    => [Histo, :histo_e4],
+    :histo_e4_4    => :skip,
+    :histo_f1_0    => [Histo, :histo_f1],
+    :histo_f1_4    => :skip,
+    :histo_f2_0    => [Histo, :histo_f2],
+    :histo_f2_4    => :skip,
+    :histo_f3_0    => [Histo, :histo_f3],
+    :histo_f3_4    => :skip,
+    :histo_f4_0    => [Histo, :histo_f4],
+    :histo_f4_4    => :skip,
+    :histo_g1_0    => [Histo, :histo_g1],
+    :histo_g1_4    => :skip,
+    :histo_g2_0    => [Histo, :histo_g2],
+    :histo_g2_4    => :skip,
+    :histo_g3_0    => [Histo, :histo_g3],
+    :histo_g3_4    => :skip,
+    :histo_g4_0    => [Histo, :histo_g4],
+    :histo_g4_4    => :skip,
+    :histo_h1_0    => [Histo, :histo_h1],
+    :histo_h1_4    => :skip,
+    :histo_h2_0    => [Histo, :histo_h2],
+    :histo_h2_4    => :skip,
+    :histo_h3_0    => [Histo, :histo_h3],
+    :histo_h3_4    => :skip,
+    :histo_h4_0    => [Histo, :histo_h4],
+    :histo_h4_4    => :skip,
+    :histo_en      => :rwreg,
     :snap_a_bram   => :bram,
     :snap_b_bram   => :bram,
     :snap_c_bram   => :bram,
