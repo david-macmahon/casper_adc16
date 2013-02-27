@@ -6,9 +6,9 @@ class ADC16Test < ADC16
   DEFAULT_BOF = 'adc16_test_rev2x8.bof'
 
   # Class for manipulating histogram devices of adc16_test design
-  class Histo
+  class Histo < KATCP::Bram
     def initialize(katcp_client, device_name)
-      @katcp_client = katcp_client
+      super
       @device_stem = device_name.sub(/_[04]$/, '')
     end
 
@@ -17,12 +17,19 @@ class ADC16Test < ADC16
       @katcp_client.write("#{@device_stem}_4", 0, NArray.int(1024))
     end
 
+    # Returns a 256x8 NArray.  histo[nil.i] is a 256 element histogram of every
+    # eigth sample (0..7 === i).  histo.sum(1) is a 256 element histogram of
+    # every sample.
     def histo
       d0 = @katcp_client.read("#{@device_stem}_0", 0, 1024).reshape(256,4)
       d4 = @katcp_client.read("#{@device_stem}_4", 0, 1024).reshape(256,4)
-      # Convert to double precision float, unsigned, and then sum
-      h  = d0.to_type(NArray::FLOAT).add!(2**31).mod!(2**32).sum(1)
-      h += d4.to_type(NArray::FLOAT).add!(2**31).mod!(2**32).sum(1)
+      # Create 256x8 NArray  of floats and store two halves in it
+      h = NArray.float(256,8)
+      h[nil, 0..3] = d0.to_type(NArray::FLOAT)
+      h[nil, 4..7] = d4.to_type(NArray::FLOAT)
+      # Convert negative values to unwrapped positiive values
+      # (-1 -> 2**32-1)
+      h.add!(2**32).mod!(2**32)
       h
     end
   end
