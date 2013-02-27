@@ -42,6 +42,9 @@ OP = OptionParser.new do |op|
   op.on('-F', '--[no-]freq', "Plot frequency channels (-t freq)") do |o|
     OPTS[:type] = :freq
   end
+  op.on('-H', '--[no-]histo', "Plot histogram (-t histo)") do |o|
+    OPTS[:type] = :histo
+  end
   op.on('-l', '--length=N', Integer, "Number of samples to plot per channel (1-65536) [#{OPTS[:nsamps]}]") do |o|
     if (1025..65536) === o
       OPTS[:test] = true
@@ -60,7 +63,7 @@ OP = OptionParser.new do |op|
   op.on('-s', '--[no-]stats', "Include stats in plot titles [#{OPTS[:stats]}]") do |o|
     OPTS[:stats] = o
   end
-  op.on('-t', '--type={time|freq}', [:time, :freq], "Type of plot [#{OPTS[:type]}]") do |o|
+  op.on('-t', '--type={time|freq|histo}', [:time, :freq, :histo], "Type of plot [#{OPTS[:type]}]") do |o|
     OPTS[:type] = o
   end
   op.on_tail("-h", "--help", "Show this message") do
@@ -84,6 +87,15 @@ else
   adc16_class = ADC16
   snap_method = :snap
   device_check = 'adc16_controller'
+end
+
+# Define
+if ! NArray.method_defined? :normal_pdf
+  class NArray
+    def normal_pdf(mean=0, var=1)
+      1.0/Math.sqrt(var*2*Math::PI)*NMath.exp(-((self-mean)**2)/(2*var))
+    end
+  end
 end
 
 # Workaround Ruby/GSL limitation that half-complex
@@ -209,6 +221,50 @@ def plot_freq(data, chip_num, chan, opts={
   pgsls(Line::SOLID)
 end
 
+def plot_histo(data, chip_num, chan)
+  histo = NArray.float(256)
+
+  256.times do |i|
+    histo[i] = data.eq(i-128).where.length
+  end
+
+  histo.div!(data.length)
+
+  min_idx, max_idx = histo.where.to_a.minmax
+  min, max = min_idx-128, max_idx-128
+
+  # Ensure symmetry
+  min = -max if -max < min
+  max = -min if -min > max
+  min_idx, max_idx = min+128, max+128
+
+  xi = NArray.int(max-min+1).indgen!(min)
+  xf = NArray.float((max-min)*20+21).indgen!(20*min).div!(20)
+  yf = xf.normal_pdf(data.mean, data.rms**2)
+
+  title2 = ''
+  if OPTS[:stats]
+    title2 = sprintf('min=%.3f mean=%.3f rms=%.3f max=%.3f',
+      min, data.mean, data.rms, data.max)
+  end
+
+
+  plot(xi, histo[min_idx..max_idx],
+       :line => :stairs,
+       :title => "ADC Channel #{ADC16.chip_name(chip_num)}#{chan}",
+       :title2 => title2,
+       :ylabel => 'Occurrence',
+       :xlabel => 'Sample Value'
+      )
+
+  pgsls(Line::DOTTED)
+  plot(xf, yf,
+       :line_color => Color::WHITE,
+       :overlay => true
+      )
+  pgsls(Line::SOLID)
+end
+
 chips = chip_chans.keys.sort
 data = a.send(snap_method, *chips, :n => OPTS[:nsamps])
 # Make sure data is an array of NArrays, even if only one element
@@ -219,6 +275,7 @@ data.each_with_index do |chip_data, chips_idx|
   chip_chans[chip_num].each do |chan|
     case OPTS[:type]
     when :freq; plot_freq(chip_data[chan-1,nil], chip_num, chan)
+    when :histo; plot_histo(chip_data[chan-1,nil], chip_num, chan)
     else plot_time(chip_data[chan-1,nil], chip_num, chan)
     end
   end
