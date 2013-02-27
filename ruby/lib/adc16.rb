@@ -167,8 +167,9 @@ class ADC16 < KATCP::RoachClient
   #   >> ADC16.chip_chan(:b4)
   #   => ["b", 4]
   def self.chip_chan(chan_name)
-    chip, chan = /^([A-Ha-h])([1-4])$/.match(chan_name).captures
-    raise 'channel name must be X#, where X is A-H and # is 1-4' unless chan
+    matchdata = /^([A-Ha-h])([1-4])$/.match(chan_name)
+    raise 'channel name must be X#, where X is A-H and # is 1-4' unless matchdata
+    chip, chan = matchdata.captures
     [chip, chan.to_i]
   end
 
