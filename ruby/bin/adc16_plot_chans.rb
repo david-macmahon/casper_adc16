@@ -19,7 +19,7 @@ OPTS = {
   :nxy => nil,
   :ask => true,
   :nsamps => 100,
-  :stats => false,
+  :stats => true,
   :test => false,
   :type => :time
 }
