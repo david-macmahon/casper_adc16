@@ -1,5 +1,4 @@
 require 'rubygems'
-#require 'adc16/version'
 require 'katcp'
 
 # Provides KATCP wrapper around ADC16 based CASPER design.  Includes many
@@ -609,3 +608,5 @@ class ADC16 < KATCP::RoachClient
   end
 
 end # class ADC16
+
+require 'adc16/version'
