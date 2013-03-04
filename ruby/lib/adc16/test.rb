@@ -43,7 +43,6 @@ class ADC16Test < ADC16
   # Map device names to device types.  OK to list devices that may not be
   # present.
   DEVICE_TYPEMAP = {
-    #:histo_a1_0    => :bram,
     :histo_a1_0    => [Histo, :histo_a1],
     :histo_a1_4    => :skip,
     :histo_a2_0    => [Histo, :histo_a2],
