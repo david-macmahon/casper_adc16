@@ -190,6 +190,9 @@ def plot_freq(data, chip_num, chan, opts={
       fdata.min, fdata.mean, fdata.rms, fdata.max)
   end
 
+  # Zero-out DC channel for plot
+  spec_amp[0] = 0
+
   plot(spec_amp,
        :line => :stairs,
        :title => "ADC Channel #{ADC16.chip_name(chip_num)}#{chan}",
