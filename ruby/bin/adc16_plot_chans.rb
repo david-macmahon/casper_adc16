@@ -262,7 +262,7 @@ def plot_histo(data, chip_num, chan)
 
   pgsls(Line::DOTTED)
   plot(xf, yf,
-       :line_color => Color::WHITE,
+       :line_color => Color::DARK_GRAY,
        :overlay => true
       )
   pgsls(Line::SOLID)
