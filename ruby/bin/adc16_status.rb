@@ -69,12 +69,13 @@ ARGV.each do |host|
   end
 
   # Print status
+  zdrev = a.zdok_rev
   r2rev = a.roach2_rev
   nadcs = a.num_adcs
   locked = a.locked_status
   lock0  = (locked & 1) == 1
   lock1  = (locked & 2) == 2
-  puts "#{host}: Design built for ROACH2 rev#{r2rev} with #{nadcs} ADCs"
+  puts "#{host}: Design built for ROACH2 rev#{r2rev} with #{nadcs} ADCs (ZDOK rev#{zdrev})"
   print "#{host}: ZDOK0 clock #{lock0 ? 'OK' : 'BAD'}"
   if !lock0
     puts
