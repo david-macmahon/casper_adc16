@@ -192,6 +192,21 @@ class ADC16 < KATCP::RoachClient
     self
   end
 
+  ZDOK_SHIFT = 28 # :nodoc:
+  ZDOK_MASK  =  3 # :nodoc: after left shift by ZDOK_SHIFT
+
+  # Return the ZDOK pinout revision for which the ADC16 design was built (0, 1,
+  # or 2).
+  #
+  #   1 = ZDOK pinout revision 1 (programs ADCs over ribbon cable)
+  #   2 = ZDOK pinout revision 2 (programs ADCs via ZDOK connectors)
+  def zdok_rev
+    zr = (adc16_controller[0] >> ZDOK_SHIFT) & ZDOK_MASK
+    # Older gateware did not set these bits, so 0 means 1
+    zr = 1 if zr == 0
+    zr
+  end
+
   LOCKED_SHIFT = 24 # :nodoc:
   LOCKED_MASK  =  3 # :nodoc: after left shift by LOCKED_SHIFT
 
@@ -217,7 +232,7 @@ class ADC16 < KATCP::RoachClient
   ROACH2_REV_SHIFT = 16 # :nodoc:
   ROACH2_REV_MASK  =  3 # :nodoc: after left shift by ROACH2_REV_SHIFT
 
-  # Returns the ROACH2 revision for which the ADC16 design was build (1 or 2).
+  # Returns the ROACH2 revision for which the ADC16 design was built (1 or 2).
   def roach2_rev
     (adc16_controller[0] >> ROACH2_REV_SHIFT) & ROACH2_REV_MASK
   end
