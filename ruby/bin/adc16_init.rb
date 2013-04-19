@@ -84,9 +84,12 @@ lock1  = (locked & 2) == 2
 print   "ZDOK0 clock #{lock0 ? 'OK' : 'BAD'}"
 print ", ZDOK1 clock #{lock1 ? 'OK' : 'BAD'}" if nadcs > 4
 puts
-if !lock0 || (nadcs > 4 && !lock1)
-  puts "ADC clock(s) not locked, unable to proceed."
+if !lock0
+  puts "ADC0 clock not locked, unable to proceed."
   exit 1
+end
+if nadcs > 4 && !lock1
+  puts "ADC1 clock not locked, proceeding anyway"
 end
 
 print "Calibrating SERDES blocks..."
