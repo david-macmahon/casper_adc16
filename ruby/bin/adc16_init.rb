@@ -89,7 +89,9 @@ if !lock0
   exit 1
 end
 if nadcs > 4 && !lock1
-  puts "ADC1 clock not locked, proceeding anyway"
+  puts "ADC1 clock not locked, not calibrating chips E,F,G,H"
+  # Only calibrate chips A through D
+  OPTS[:chips] = [:a, :b, :c, :d]
 end
 
 print "Calibrating SERDES blocks..."
