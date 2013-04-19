@@ -582,19 +582,24 @@ class ADC16 < KATCP::RoachClient
     # Make sure opts[:chips] is an Array (and allow :chip to override :chips)
     opts[:chips] = [opts[:chip]||opts[:chips]]
     opts[:chips].flatten!
-    # Select only those chips that are not supported/used
-    opts[:chips].select! {|c| ADC16.chip_num(c) < num_adcs}
-    # Convert to chip names
-    opts[:chips].map! {|c| ADC16.chip_name(c)}
-    puts "calibrating chips #{opts[:chips].inspect}" if opts[:verbose]
+    # Select only those chips that are supported/used
+    opts[:chips].select! {|c| (0...num_adcs) === ADC16.chip_num(c)}
 
     # Create :expected alias for :deskew_expected so that opts can be passed to walk_taps
     opts[:expected] = opts[:deskew_expected] unless opts[:expected]
 
     # Error out if ADC0 is not locked
     raise 'ADC0 clock not locked' if (locked_status&1) == 0
-    # Warn if ADC1 clock is not locked when num_adcs > 4
-    warn 'warning: ADC1 clock not locked' if (locked_status&2) == 0 && num_adcs > 4
+    # If num_adcs > 4 and ADC1 clock is not locked and opts[:chips].reject! for
+    # chips greater than 3 actually rejected any chips, issue warning
+    if num_adcs > 4 && (locked_status&2) == 0 \
+    && opts[:chips].reject! {|c| ADC16.chip_num(c) > 3}
+        warn 'warning: ADC1 clock not locked, will not calibrate its chips'
+    end
+
+    # Convert to chip names
+    opts[:chips].map! {|c| ADC16.chip_name(c)}
+    puts "calibrating chips #{opts[:chips].inspect}" if opts[:verbose]
 
     # Walk delay taps (sets deskew pattern)
     opts[:chips].each do |chip|
