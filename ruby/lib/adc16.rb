@@ -437,6 +437,15 @@ class ADC16 < KATCP::RoachClient
   end
 
   # Tests a tap setting for an ADC chip.  Used by #walk_taps.
+  # Returns a four element array.  Each element represents on channel and is
+  # itself a two element array containing error counts for the channel's lanes.
+  # A zero value means no errors for the corresponding channel/lane of the
+  # given chip at the given delay tap.
+  #
+  # For example, if chip is :c and tap is 12 and test_tap returns
+  # <tt>[[0,0],[0,0],[0,9],[0,0]]</tt> it means that all channels and lanes of
+  # chip C worked OK at tap setting 12 except for channel index 2 lane b (aka
+  # "C3b") which had 9 errors.
   def test_tap(chip, tap, opts={})
     # Allow caller to override default opts
     opts = {
@@ -501,9 +510,11 @@ class ADC16 < KATCP::RoachClient
       bitslip(chip)
     end
 
-    # good_taps has four elements, one element for each channel;
+    # good_tap_ranges has four elements, one element for each channel;
     # each channel's element has two elements, one for each lane.
-    good_taps = [[[],[]], [[],[]], [[],[]], [[],[]]]
+    # Each lane element is an Array that will contain ranges indicating good
+    # taps.
+    good_tap_ranges = [[[],[]], [[],[]], [[],[]], [[],[]]]
     counts = [[], [], [], []]
 
     # Test all taps
@@ -512,39 +523,43 @@ class ADC16 < KATCP::RoachClient
       # Check each channel's chan_counts
       4.times do |chan|
         counts[chan][tap] = chan_counts[chan]
-        good_taps[chan][0] << tap if chan_counts[chan][0] == 0
-        good_taps[chan][1] << tap if chan_counts[chan][1] == 0
-      end
-    end
+        2.times do |lane|
+          # If good
+          if chan_counts[chan][lane] == 0
+            last_range = good_tap_ranges[chan][lane][-1]
+            # If no range yet or new range
+            if last_range.nil? || tap > last_range.end + 1
+              good_tap_ranges[chan][lane] << (tap..tap)
+            else
+              good_tap_ranges[chan][lane][-1] = (last_range.first..tap)
+            end
+          end # if good
+        end # lanes
+      end # chans
+    end # taps
 
     # Set delay taps to middle of the good range
     set_taps = [[],[],[],[]]
     4.times do |chan|
       2.times do |lane|
-        good_chan_taps = good_taps[chan][lane]
-        if good_chan_taps.empty?
+        good_chan_tap_ranges = good_tap_ranges[chan][lane]
+        if good_chan_tap_ranges.empty?
           puts "chip #{ADC16.chip_name(chip)} " \
                "chan #{chan+1} lane #{lane} "   \
                "no good taps found" if opts[:verbose]
           next
         end
-        # Detect case where good tap values "wrap around"
-        # (might break for slow sample clocks).
-        if good_chan_taps.max - good_chan_taps.min > 24
-          puts "chip #{ADC16.chip_name(chip)} " \
-               "chan #{chan+1} lane #{lane} "   \
-               "good tap range too large "      \
-               "#{good_chan_taps.inspect}" if opts[:verbose]
-          set_taps[chan][lane] = nil
-          next
-        end
-        best_chan_tap = good_chan_taps[good_chan_taps.length/2]
-        next if best_chan_tap.nil?  # TODO Warn or raise exception?
+
+        # Find longest range
+        best_chan_tap_range = good_chan_tap_ranges.max_by {|r| r.count}
+        # Compute midpoint
+        best_chan_tap = (best_chan_tap_range.first + best_chan_tap_range.last) / 2
+        # Set delay tap to midpoint
         delay_tap(chip, best_chan_tap, 1<<(chan+4*lane))
         puts "chip #{ADC16.chip_name(chip)} "   \
              "chan #{chan+1} lane #{lane} "     \
              "setting tap=#{best_chan_tap} "    \
-             "from #{good_chan_taps.inspect}" if opts[:verbose]
+             "from #{good_chan_tap_ranges.inspect}" if opts[:verbose]
         set_taps[chan][lane] = best_chan_tap
       end
     end
