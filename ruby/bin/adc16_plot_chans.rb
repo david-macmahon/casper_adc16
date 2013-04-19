@@ -240,6 +240,7 @@ def plot_histo(data, chip_num, chan)
   min = -max if -max < min
   max = -min if -min > max
   min_idx, max_idx = min+128, max+128
+  max_idx = 255 if max_idx == 256
 
   xi = NArray.int(max-min+1).indgen!(min)
   xf = NArray.float((max-min)*20+21).indgen!(20*min).div!(20)
@@ -251,13 +252,13 @@ def plot_histo(data, chip_num, chan)
       min, data.mean, data.rms, data.max)
   end
 
-
   plot(xi, histo[min_idx..max_idx],
        :line => :stairs,
        :title => "ADC Channel #{ADC16.chip_name(chip_num)}#{chan}",
        :title2 => title2,
        :ylabel => 'Occurrence',
-       :xlabel => 'Sample Value'
+       :xlabel => 'Sample Value',
+       :xpad => 0.02
       )
 
   pgsls(Line::DOTTED)
