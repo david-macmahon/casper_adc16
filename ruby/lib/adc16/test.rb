@@ -17,21 +17,113 @@ class ADC16Test < ADC16
       @katcp_client.write("#{@device_stem}_4", 0, NArray.int(1024))
     end
 
-    # Returns a 256x8 NArray.  histo[nil.i] is a 256 element histogram of every
-    # eigth sample (0..7 === i).  histo.sum(1) is a 256 element histogram of
+    # Returns a 256x8 NArray.  histo[nil,i] is a 256 element histogram of every
+    # eighth sample (0..7 === i).  histo.sum(1) is a 256 element histogram of
     # every sample.
     def histo
       d0 = @katcp_client.read("#{@device_stem}_0", 0, 1024).reshape(256,4)
       d4 = @katcp_client.read("#{@device_stem}_4", 0, 1024).reshape(256,4)
-      # Create 256x8 NArray  of floats and store two halves in it
-      h = NArray.float(256,8)
-      h[nil, 0..3] = d0.to_type(NArray::FLOAT)
-      h[nil, 4..7] = d4.to_type(NArray::FLOAT)
-      # Convert negative values to unwrapped positiive values
+      # Create 256x8 NArray of floats and store two halves in it
+      nn = NArray.float(256,8)
+      nn[nil, 0..3] = d0.to_type(NArray::FLOAT)
+      nn[nil, 4..7] = d4.to_type(NArray::FLOAT)
+      # Convert negative values to unwrapped positive values
       # (-1 -> 2**32-1)
-      h.add!(2**32).mod!(2**32)
-      h
+      nn.add!(2**32).mod!(2**32)
+      nn
     end
+
+    # Returns the mean calculated from histogram data in NArray +nn+.  The
+    # first dimenstion of +nn+ (i.e. <code>nn.shape[0]</code> is the number of
+    # bins.  The X value for each bin goes from <code>-floor(nbins/2)</code> to
+    # <code>nbins+floor(nbins/2)-1</code>.
+    #
+    # If +demux+ is true, an NAray of means is returned, one per histogram in
+    # +nn+ (e.g. if +nn+ is two dimensional such as the return value from
+    # #histo.  If +demux+ is false (the default), the mean of all histograms is
+    # returned.
+    #
+    # To get the overall mean for all eight "sub-histograms" such as returned
+    # by #histo, pass <code>false</code> (or nothing) for +demux+.  To get the
+    # means for each of the eight "sub-histograms", pass <code>true</code> for
+    # +demux+.
+    def self.mean(nn, demux=false)
+      dim = demux ? [0] : []
+      nbins = nn.shape[0]
+      xx = NArray.float(*nn.shape).indgen!.mod!(nbins).sbt!(nbins/2)
+      (nn*xx).sum(*dim).to_f/nn.sum(*dim)
+    end
+
+    # Reads the histogram data and returns the mean calculated from it.  If no
+    # samples have been accumulated (i.e. all bins contain 0), then NaN
+    # is returned.
+    #
+    # If +demux+ is true, an NAray of means is returned, one per
+    # "sub-histogram".  If demux is false (the default), the mean of all
+    # histograms is returned.
+    #
+    # To get the overall mean for all eight "sub-histograms" such as returned
+    # by #histo, pass <code>false</code> (the default) for +demux+.  To get the
+    # means for each of the eight "sub-histograms", pass <code>true</code> for
+    # +demux+.
+    def mean(demux=false)
+      self.class.mean(histo, demux)
+    end
+
+    # Returns the standard deviation calculated from histogram data in NArray
+    # +nn+.  The first dimenstion of +nn+ (i.e. <code>nn.shape[0]</code> is the
+    # number of bins.  The X value for each bin goes from
+    # <code>-floor(nbins/2)</code> to <code>nbins+floor(nbins/2)-1</code>.
+    #
+    # If +demux+ is true, an NAray of standard deviations is returned, one per
+    # histogram in +nn+ (e.g. if +nn+ is two dimensional such as the return
+    # value from #histo.  If +demux+ is false (the default), the standard
+    # deviation of all histograms is returned.
+    #
+    # To get the overall standard deviation for all eight "sub-histograms" such
+    # as returned by #histo, pass nothing for +demux+.  To get the standard
+    # deviations for each of the eight "sub-histograms", pass <code>0</code>
+    # for +demux+.
+    def self.stddev(nn, demux=false)
+      m = mean(nn, demux)
+      # Convert non-NArray (e.g Float) mean to Array
+      m = [m] unless NArray === m
+      # Create xx NArray
+      nbins = nn.shape[0]
+      xx = NArray.float(nbins).indgen!.mod!(nbins).sbt!(nbins/2)
+      # Create sd NArray
+      sd = NArray.float(m.length)
+      sd.length.times do |i|
+        p = nn[nil,i] / nn[nil,i].sum
+        variance = (p * (xx-m[i])**2).sum
+        sd[i] = sqrt(variance)
+      end
+      (sd.length == 1) ? sd[0] : sd
+    end
+
+    class <<self
+      alias sd  stddev
+      alias std stddev
+    end
+
+    # Reads the histogram data and returns the mean calculated from it.  If no
+    # samples have been accumulated (i.e. all bins contain 0), then NaN
+    # is returned.
+    #
+    # If +demux+ is true, an NAray of standard deviations is returned, one per
+    # "sub-histogram".  If +demux+ is false (the default), the overall standard
+    # deviation is returned.
+    #
+    # To get the overall standard deviation for all eight "sub-histograms" such
+    # as returned by #histo, pass <code>false</code> (the default) for +demux+.
+    # To get the standard deviations for each of the eight "sub-histograms",
+    # pass <code>true</code> for +demux+.
+    def stddev(demux=false)
+      self.class.std(histo, demux)
+    end
+
+    alias sd  stddev
+    alias std stddev
   end
 
   # Sets a default BOF file to DEFAULT_BOF if none passed in by caller.
