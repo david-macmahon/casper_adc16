@@ -437,12 +437,12 @@ class ADC16 < KATCP::RoachClient
   end
 
   # Tests a tap setting for an ADC chip.  Used by #walk_taps.
-  # Returns a four element array.  Each element represents on channel and is
+  # Returns a four element array.  Each element represents one channel and is
   # itself a two element array containing error counts for the channel's lanes.
   # A zero value means no errors for the corresponding channel/lane of the
   # given chip at the given delay tap.
   #
-  # For example, if chip is :c and tap is 12 and test_tap returns
+  # For example, if +chip+ is :c and +tap+ is 12 and test_tap returns
   # <tt>[[0,0],[0,0],[0,9],[0,0]]</tt> it means that all channels and lanes of
   # chip C worked OK at tap setting 12 except for channel index 2 lane b (aka
   # "C3b") which had 9 errors.
@@ -567,8 +567,45 @@ class ADC16 < KATCP::RoachClient
     [set_taps, counts]
   end
 
+  # Enables the sync pattern and then bitslips the SERDES blocks for one or more
+  # ADC chips to capture expected sync pattern.  +opts+ is a Hash that supports
+  # the following keys (shown with default values):
+  #
+  #   :chips => [:a, :b, :c, :d, :e, :f, :g, :h]
+  #     - Chips to calibrate
+  #
+  #   :sync_expected => 0x70
+  #     - Expected value of sync pattern (leave at default except for testing)
+  def sync_chips(opts={})
+    # Allow caller to override default opts
+    opts = {
+      :chips => [:a, :b, :c, :d, :e, :f, :g, :h],
+      :sync_expected => 0x70
+    }.merge!(opts)
+
+    # Set sync pattern
+    sync_pattern
+    # Convert lowest 8 bits of opts[:sync_expected] from unsigned byte to signed integer
+    sync_expected = opts[:sync_expected] & 0xff
+    sync_expected -= (1<<8) if sync_expected > (1<<7)
+
+    # Bit slip each ADC
+    status = opts[:chips].map do |chip|
+      # Try up to 8 bitslip operations to get things right
+      8.times do
+        # Done if any (e.g. first) channel matches sync_expected
+        break if snap(chip, :n=>1)[0] == sync_expected
+        bitslip(chip)
+      end
+      # Verify sucessful sync-up
+      snap(chip, :n=>1)[0] == sync_expected
+    end
+    status
+  end
+
   # Calibrates the SERDES blocks for one or more ADC chips.  +opts+ is a Hash
   # that supports the following keys (shown with default values):
+  #
   #   :chips => [:a, :b, :c, :d, :e, :f, :g, :h]
   #     - Chips to calibrate
   #
@@ -622,24 +659,8 @@ class ADC16 < KATCP::RoachClient
       yield ADC16.chip_name(chip) if block_given?
     end
 
-    # Set sync pattern
-    sync_pattern
-    # Convert lowest 8 bits of opts[:sync_expected] from unsigned byte to signed integer
-    sync_expected = opts[:sync_expected] & 0xff
-    sync_expected -= (1<<8) if sync_expected > (1<<7)
-
-    # Bit slip each ADC
-    status = opts[:chips].map do |chip|
-      # Try up to 8 bitslip operations to get things right
-      8.times do
-        # Done if any (e.g. first) channel matches sync_expected
-        break if snap(chip, :n=>1)[0] == sync_expected
-        bitslip(chip)
-      end
-      # Verify sucessful sync-up
-      snap(chip, :n=>1)[0] == sync_expected
-    end
-    status
+    # Sync chips
+    sync_chips(opts)
   end
 
 end # class ADC16
