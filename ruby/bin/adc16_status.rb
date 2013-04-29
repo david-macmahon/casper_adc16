@@ -35,24 +35,6 @@ if ARGV.empty?
   exit 1
 end
 
-def check_cal(adc16, nadcs)
-  chips_to_snap = (0...nadcs).to_a
-  # Check deskew
-  adc16.deskew_pattern
-  deskew = adc16.snap(chips_to_snap)
-  deskew_errors = deskew.map do |na|
-    na.ne(0x2a).to_type(NArray::INT).sum(1).to_a
-  end
-  # Check sync
-  adc16.sync_pattern
-  sync = adc16.snap(chips_to_snap)
-  sync_errors = sync.map do |na|
-    na.ne(0x2a).to_type(NArray::INT).sum(1).to_a
-  end
-
-  [deskew_errors, sync_errors]
-end
-
 ARGV.each do |host|
   a = ADC16.new(host)
 
