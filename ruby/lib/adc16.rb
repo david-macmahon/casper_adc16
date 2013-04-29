@@ -136,16 +136,16 @@ class ADC16 < KATCP::RoachClient
   # or 'A' to 'H'.
   def self.chip_num(chip_spec)
     case chip_spec
-    when 0, :a, 'a', 'A'; 0
-    when 1, :b, 'b', 'B'; 1
-    when 2, :c, 'c', 'C'; 2
-    when 3, :d, 'd', 'D'; 3
-    when 4, :e, 'e', 'E'; 4
-    when 5, :f, 'f', 'F'; 5
-    when 6, :g, 'g', 'G'; 6
-    when 7, :h, 'h', 'H'; 7
+    when 0, '0', :a, 'a', 'A'; 0
+    when 1, '1', :b, 'b', 'B'; 1
+    when 2, '2', :c, 'c', 'C'; 2
+    when 3, '3', :d, 'd', 'D'; 3
+    when 4, '4', :e, 'e', 'E'; 4
+    when 5, '5', :f, 'f', 'F'; 5
+    when 6, '6', :g, 'g', 'G'; 6
+    when 7, '7', :h, 'h', 'H'; 7
     else
-      raise "invalid chip spec '#{chip_spec}'"
+      raise "invalid chip spec #{chip_spec.inspect}"
     end
   end
 
