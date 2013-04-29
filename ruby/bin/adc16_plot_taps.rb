@@ -171,6 +171,8 @@ OPTS[:chips].each do |chip|
                 :set_taps => set_taps[chan])
   end
 end
+puts 'Selecting ADC sync pattern' if OPTS[:verbose]
+a.sync_chips(OPTS)
 puts 'Selecting ADC analog inputs' if OPTS[:verbose]
 a.no_pattern
 
