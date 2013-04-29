@@ -17,7 +17,7 @@ end
 include Pgplot
 
 OPTS = {
-  :chips => (:a..:h).to_a,
+  :chips => ('a'..'h').to_a,
   :device => ENV['PGPLOT_DEV'] || '/xs',
   :nxy => nil,
   :verbose => false,
