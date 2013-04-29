@@ -91,7 +91,9 @@ elsif a.listdev.grep(device_check).empty?
 end
 
 tic = Time.now
-data = a.send(snap_method, *(0...a.num_adcs).to_a, :n => OPTS[:nsamps])
+snap_args = (0...a.num_adcs).to_a
+snap_args << {:n => OPTS[:nsamps]}
+data = a.send(snap_method, *snap_args)
 toc = Time.now
 $stderr.puts "data snap took #{toc-tic} seconds" if OPTS[:verbose]
 

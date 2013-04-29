@@ -270,7 +270,9 @@ def plot_histo(data, chip_num, chan)
 end
 
 chips = chip_chans.keys.sort
-data = a.send(snap_method, *chips, :n => OPTS[:nsamps])
+snap_args = chips
+snap_args << {:n => OPTS[:nsamps]}
+data = a.send(snap_method, *snap_args)
 # Make sure data is an array of NArrays, even if only one element
 data = [data].flatten
 # Plot data
