@@ -62,9 +62,10 @@ if ! a.listdev.grep('adc16_controller').any?
 end
 
 # Decode and print build info bits
+zdrev = a.zdok_rev
 r2rev = a.roach2_rev
 nadcs = a.num_adcs
-puts "Design built for ROACH2 rev#{r2rev} with #{nadcs} ADCs"
+puts "Design built for ROACH2 rev#{r2rev} with #{nadcs} ADCs (ZDOK rev#{zdrev})"
 
 # Prent user-requested register settings
 OPTS[:init_regs].keys.sort.each do |reg|
