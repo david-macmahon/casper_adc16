@@ -1,4 +1,8 @@
 require 'rubygems'
+
+# We need a katcp version in which RoachClient defines DEVICE_TYPEMAP.
+# That was introduced in katcp 0.1.10.
+gem 'katcp', '~> 0.1.10'
 require 'katcp'
 
 # Provides KATCP wrapper around ADC16 based CASPER design.  Includes many
@@ -103,12 +107,12 @@ require 'katcp'
 #   # =============================================== #
 
 class ADC16 < KATCP::RoachClient
-  DEVICE_TYPEMAP = {
+  DEVICE_TYPEMAP = superclass::DEVICE_TYPEMAP.merge({
     :adc16_controller => :bram
-  } # :nodoc:
+  }) # :nodoc:
 
   def device_typemap # :nodoc:
-    DEVICE_TYPEMAP
+    @device_typemap ||= DEVICE_TYPEMAP.dup
   end
 
   # Standard KATCP::RoachClient arguments, plus support for:

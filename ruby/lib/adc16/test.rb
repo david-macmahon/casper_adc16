@@ -134,7 +134,7 @@ class ADC16Test < ADC16
 
   # Map device names to device types.  OK to list devices that may not be
   # present.
-  DEVICE_TYPEMAP = {
+  DEVICE_TYPEMAP = superclass::DEVICE_TYPEMAP.merge({
     :histo_a1_0    => [Histo, :histo_a1],
     :histo_a1_4    => :skip,
     :histo_a2_0    => [Histo, :histo_a2],
@@ -218,10 +218,10 @@ class ADC16Test < ADC16
     :snap_h_status => :roreg,
     :sync_count    => :roreg,
     :sync_period   => :roreg
-  } # :nodoc:
+  }) # :nodoc:
 
   def device_typemap # :nodoc:
-    super.merge!(DEVICE_TYPEMAP)
+    @device_typemap ||= DEVICE_TYPEMAP.dup
   end
 
   # For each chip given in +chips+ (one or more of :a to :h, 0 to 7, 'a' to
