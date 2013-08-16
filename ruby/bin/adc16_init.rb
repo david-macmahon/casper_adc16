@@ -2,7 +2,7 @@
 
 require 'rubygems'
 require 'optparse'
-require 'adc16/test'
+require 'adc16'
 
 OPTS = {
   :init_regs => {},
@@ -13,10 +13,10 @@ OPTS = {
 OP = OptionParser.new do |op|
   op.program_name = File.basename($0)
 
-  op.banner = "Usage: #{op.program_name} [OPTIONS] ROACH2_NAME [BOF]"
+  op.banner = "Usage: #{op.program_name} [OPTIONS] HOSTNAME BOF"
   op.separator('')
-  op.separator('Programs an ADC16-based design and calibrates the serdes receivers.')
-  op.separator("If BOF is not given, uses #{ADC16Test::DEFAULT_BOF}.")
+  op.separator('Programs HOSTNAME with ADC16-based design BOF and then calibrates')
+  op.separator('the serdes receivers.')
   op.separator('')
   op.separator 'Options:'
   op.on('-i', '--iters=N', Integer, "Number of snaps per tap [#{OPTS[:num_iters]}]") do |o|
@@ -39,25 +39,30 @@ OP = OptionParser.new do |op|
 end
 OP.parse!
 
-if ARGV.empty?
+if ARGV.length != 2
+  STDERR.puts "Need 2 non-option arguments, but #{ARGV.length} given."
+  STDERR.puts
   STDERR.puts OP
   exit 1
 end
 
-bof = ARGV[1] || ADC16Test::DEFAULT_BOF
-a = ADC16.new(ARGV[0], :bof => bof)
+host = ARGV[0]
+bof  = ARGV[1]
 
-puts "Programming #{ARGV[0]} with #{bof}..."
+puts "Connecting to #{host}..."
+a = ADC16.new(host, :bof => bof)
+
+puts "Programming #{host} with #{bof}..."
 a.progdev(bof)
 
 # Verify that programming succeeded
 if ! a.programmed?
-  puts "error programming #{ARGV[0]} with #{bof}"
+  puts "error programming #{host} with #{bof}"
   exit 1
 end
 # Verify that given design is ADC16-based
 if ! a.listdev.grep('adc16_controller').any?
-  puts "Programmed #{ARGV[0]} with #{bof}, but it is not an ADC16-based design."
+  puts "Programmed #{host} with #{bof}, but it is not an ADC16-based design."
   exit 1
 end
 
