@@ -556,6 +556,7 @@ class ADC16 < KATCP::RoachClient
 
         # Find longest range
         best_chan_tap_range = good_chan_tap_ranges.max_by {|r| r.count}
+        # TODO Print warning if good range is too small?
         # Compute midpoint
         best_chan_tap = (best_chan_tap_range.first + best_chan_tap_range.last) / 2
         # Set delay tap to midpoint
