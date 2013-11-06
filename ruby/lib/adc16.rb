@@ -639,7 +639,9 @@ class ADC16 < KATCP::RoachClient
     opts[:chips] = [opts[:chip]||opts[:chips]]
     opts[:chips].flatten!
     # Select only those chips that are supported/used
-    opts[:chips].select! {|c| (0...num_adcs) === ADC16.chip_num(c)}
+    opts[:chips] = opts[:chips].select do |c|
+      (0...num_adcs) === ADC16.chip_num(c)
+    end
 
     # Create :expected alias for :deskew_expected so that opts can be passed to walk_taps
     opts[:expected] = opts[:deskew_expected] unless opts[:expected]

@@ -94,7 +94,7 @@ elsif ! (a.programmed? && a.listdev.grep('adc16_controller').any?)
 end
 
 # Limit chips to those supported by gateware
-OPTS[:chips].select! {|c| ADC16.chip_num(c) < a.num_adcs}
+OPTS[:chips] = OPTS[:chips].select {|c| ADC16.chip_num(c) < a.num_adcs}
 
 if OPTS[:nxy]
   OPTS[:nx], OPTS[:ny] = OPTS[:nxy]
