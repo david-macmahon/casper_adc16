@@ -57,7 +57,16 @@ ARGV.each do |host|
   locked = a.locked_status
   lock0  = (locked & 1) == 1
   lock1  = (locked & 2) == 2
+
   puts "#{host}: Design built for ROACH2 rev#{r2rev} with #{nadcs} ADCs (ZDOK rev#{zdrev})"
+
+  print "#{host}: Gateware "
+  if a.supports_demux?
+    puts "supports demux modes (currently using demux by #{a.demux})"
+  else
+    puts "does not support demux modes"
+  end
+
   print "#{host}: ZDOK0 clock #{lock0 ? 'OK' : 'BAD'}"
   if !lock0
     puts
