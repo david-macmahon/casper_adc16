@@ -8,6 +8,7 @@ OPTS = {
   :init_regs => {},
   :verbose => false,
   :num_iters => 1,
+  :demux_mode => 1
 }
 
 OP = OptionParser.new do |op|
@@ -19,10 +20,16 @@ OP = OptionParser.new do |op|
   op.separator('the serdes receivers.')
   op.separator('')
   op.separator 'Options:'
-  op.on('-i', '--iters=N', Integer, "Number of snaps per tap [#{OPTS[:num_iters]}]") do |o|
+  op.on('-d', '--demux=D', ['1', '2', '4'],
+        "Set demux mode (1|2|4) [#{OPTS[:demux_mode]}]") do |o|
+    OPTS[:demux_mode] = o.to_i
+  end
+  op.on('-i', '--iters=N', Integer,
+        "Number of snaps per tap [#{OPTS[:num_iters]}]") do |o|
     OPTS[:num_iters] = o
   end
-  op.on('-r', '--reg=R1=V1[,R2=V2...]', Array, 'Register addr=value pairs to set') do |o|
+  op.on('-r', '--reg=R1=V1[,R2=V2...]', Array,
+        'Register addr=value pairs to set') do |o|
     o.each do |rv|
       reg, val = rv.split('=').map {|s| Integer(s)}
       next unless val
@@ -72,7 +79,33 @@ r2rev = a.roach2_rev
 nadcs = a.num_adcs
 puts "Design built for ROACH2 rev#{r2rev} with #{nadcs} ADCs (ZDOK rev#{zdrev})"
 
-# Prent user-requested register settings
+# Check demux mode support and request
+demux_mode = OPTS[:demux_mode]
+print "Gateware "
+if a.supports_demux?
+  puts "supports demux modes (using demux by #{demux_mode})"
+else
+  puts "does not support demux modes"
+  if demux_mode != 1
+    raise "cannot use demux by #{demux_mode} with this gateware design"
+  end
+  demux_mode = ADC16::DEMUX_BY_1
+end
+
+# Setup registers for demux_mode (if other than DEMUX_BY_1)
+if demux_mode != ADC16::DEMUX_BY_1
+  # See if user want to also preogram bits in reg 0x31
+  reg31 = OPTS[:init_regs][0x31] || 0
+  # Mask off any existing channel_num bits
+  reg31 &= ~7
+  # Set the channel_num bits to 2 (demux by 2) or 1 (demux by 4)
+  reg31 |= 2 if demux_mode == ADC16::DEMUX_BY_2
+  reg31 |= 1 if demux_mode == ADC16::DEMUX_BY_4
+  # Save the new reg31 value
+  OPTS[:init_regs][0x31] = reg31
+end
+
+# Print user-requested register settings
 OPTS[:init_regs].keys.sort.each do |reg|
   val = OPTS[:init_regs][reg]
   printf "Will set ADC register 0x%02x to 0x%04x\n", reg, val
@@ -116,5 +149,10 @@ end
 
 puts "Selecting analog inputs..."
 a.no_pattern
+
+if demux_mode != ADC16::DEMUX_BY_1
+  puts "Setting demux by #{demux_mode} mode..."
+  a.demux = demux_mode
+end
 
 puts "Done!"
