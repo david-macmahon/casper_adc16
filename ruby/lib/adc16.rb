@@ -59,6 +59,8 @@ require 'katcp'
 #   # ======================================= #
 #   # ADC16 Control Register (word 1)         #
 #   # ======================================= #
+#   # W  = Deux write-enable                  #
+#   # MM = Demux mode                         #
 #   # R = ADC16 Reset                         #
 #   # S = Snap Request                        #
 #   # H = ISERDES Bit Slip Chip H             #
@@ -74,10 +76,28 @@ require 'katcp'
 #   # |<-- MSb                       LSb -->| #
 #   # 0000 0000 0011 1111 1111 2222 2222 2233 #
 #   # 0123 4567 8901 2345 6789 0123 4567 8901 #
+#   # ---- -WMM ---- ---- ---- ---- ---- ---- #
 #   # ---- ---- ---R ---- ---- ---- ---- ---- #
 #   # ---- ---- ---- ---S ---- ---- ---- ---- #
 #   # ---- ---- ---- ---- HGFE DCBA ---- ---- #
 #   # ---- ---- ---- ---- ---- ---- ---T TTTT #
+#   # ======================================= #
+#   # NOTE: W enables writing the MM bits.    #
+#   #       Some of the other bits in this    #
+#   #       register are one-hot.  Using      #
+#   #       W ensures that the MM bits will   #
+#   #       only be written to when desired.  #
+#   #       00: demux by 1 (single channel)   #
+#   # ======================================= #
+#   # NOTE: MM selects the demux mode.        #
+#   #       00: demux by 1 (single channel)   #
+#   #       01: demux by 2 (dual channel)     #
+#   #       10: demux by 4 (quad channel)     #
+#   #       11: undefined                     #
+#   #       ADC board.  A '1' bit means       #
+#   #       locked (good!).  Bit 5 is always  #
+#   #       used, but bit 6 is only used when #
+#   #       NNNN is 4 (or less).              #
 #   # ======================================= #
 #
 #   # =============================================== #
@@ -239,6 +259,71 @@ class ADC16 < KATCP::RoachClient
   # Returns the ROACH2 revision for which the ADC16 design was built (1 or 2).
   def roach2_rev
     (adc16_controller[0] >> ROACH2_REV_SHIFT) & ROACH2_REV_MASK
+  end
+
+  # Returns true is ADC16 gateware supports demultiplexing modes.
+  # Demultiplexing modes are used when running the ADC16 in dual and quad
+  # channel configurations.  See #demux and #demux= for more info.
+  def supports_demux?
+    # The W bit cannot be set to 1 if the ADC16 gateware supports demux modes.
+    adc16_controller[1] |= 0x0400_0000
+    return (adc16_controller[1] & 0x0400_0000) == 0
+  end
+
+  # Demux mode value for quad channel (per chip) operation
+  # (16 channels @ 1 ADC sample per FPGA fabric cycle)
+  DEMUX_BY_1 = 1
+
+  # Demux mode value for dual channel (per chip) operation
+  # (8 channels * 2 ADC samples per FPGA fabric cycle)
+  DEMUX_BY_2 = 2
+
+  # Demux mode value for single channel (per chip) operation
+  # (4 channels * 4 ADC samples per FPGA fabric cycle)
+  DEMUX_BY_4 = 4
+
+  DEMUX_SHIFT = 24 # :nodoc:
+  DEMUX_MASK  =  3 # :nodoc:
+
+  # Returns the current demux mode.  If the gateware does not support demux
+  # modes, then this will always return DEMUX_BY_1.  This method will always
+  # return one of: DEMUX_BY_1, DEMUX_BY_2, or DEMUX_BY_4.
+  def demux
+    return DEMUX_BY_1 unless supports_demux?
+    mode = (adc16_controller[1] >> DEMUX_SHIFT) & DEMUX_MASK
+    case mode
+    when 1; DEMUX_BY_2
+    when 2; DEMUX_BY_4
+    else    DEMUX_BY_1
+    end
+  end
+
+  # Sets the current demux mode.  Raises exception if the gateware does not
+  # support demux modes and a mode other than DEMUX_BY_1 is being requested.
+  # Raises an exception if +mode+ is something other than DEMUX_BY_1,
+  # DEMUX_BY_2, or DEMUX_BY_4.
+  #
+  # Note that setting the demux mode here only affects the demultiplexing of
+  # the data from the ADC before presenting it to the FPGA fabric.  The
+  # demultiplexing mode set does NOT set the "mode of operation" of the ADC
+  # chips.  That must be done by the user when initializing the ADC16 chips
+  # because it requires a software power down of the ADC chip.  The user is
+  # responsible for ensuring that the "mode of operation" set in the ADC chips
+  # at initialization time is consistent with the demux mode set using this
+  # method.  Mismatches will result in improper interpretation of the data.
+  def demux=(mode)
+    case mode
+    when DEMUX_BY_1
+      adc16_controller[1] |= ((4+0) << DEMUX_SHIFT)
+    when DEMUX_BY_2, DEMUX_BY_4
+      if supports_demux?
+        adc16_controller[1] |= ((4+mode/2) << DEMUX_SHIFT)
+      else
+        raise 'current gateware does not support demux modes'
+      end
+    else
+      raise "invalid demux mode (#{mode})"
+    end
   end
 
   # Performs a reset of all ADCs selected by +chip_select+.
