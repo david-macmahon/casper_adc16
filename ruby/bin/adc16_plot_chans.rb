@@ -122,6 +122,13 @@ elsif a.listdev.grep(device_check).empty?
   exit 1
 end
 
+# Get number of channels per chip based on current demux mode
+nchan_per_chip = case a.demux
+                 when ADC16::DEMUX_BY_4; 1
+                 when ADC16::DEMUX_BY_2; 2
+                 else 4
+                 end
+
 # Chip chans will contain chip numbers for keys whose corresponding value is an
 # Array of channels to plot for that chip.
 chip_chans = {}
@@ -129,6 +136,7 @@ num_chans = 0
 OPTS[:chans].each do |chan_name|
   chip, chan = ADC16.chip_chan(chan_name) rescue nil
   next unless chip
+  next unless (1..nchan_per_chip) === chan
   chip = ADC16.chip_num(chip) rescue nil
   next if chip.nil? || chip >= a.num_adcs
   chip_chans[chip] ||= []
@@ -149,7 +157,8 @@ else
                          when 2; [2, 1]
                          when 3..4; [2, 2]
                          when 5..6; [3, 2]
-                         when 7..9; [3, 3]
+                         when 7,9; [3, 3]
+                         when 8; (OPTS[:type] == :histo) ? [4, 2] : [2, 4]
                          when 10..12; [4, 3]
                          else; [4, 4]
                          end
