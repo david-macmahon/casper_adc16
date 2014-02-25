@@ -481,8 +481,21 @@ class ADC16 < KATCP::RoachClient
       end
       # Convert to bytes
       d = d.hton.to_type_as_binary(NArray::BYTE)
-      # Reshape to 4-by-len matrix
-      d.reshape!(4, true)
+      case demux
+      when DEMUX_BY_1
+        # Reshape to 4-by-1*len matrix
+        d.reshape!(4, true)
+      when DEMUX_BY_2
+        # Reshape to 2-by-2*len matrix
+        d.reshape!(4, true)
+        d2 = NArray.byte(2, 2*len)
+        d2[0, nil] = d[0..1, nil].reshape(2*len)
+        d2[1, nil] = d[2..3, nil].reshape(2*len)
+        d = d2
+      when DEMUX_BY_4
+        # Reshape to 1-by-4*len matrix
+        d.reshape!(1, true)
+      end
       # Convert to integers
       d = d.to_type(NArray::INT)
       # Convert to signed numbers
