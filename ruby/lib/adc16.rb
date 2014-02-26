@@ -787,6 +787,66 @@ class ADC16 < KATCP::RoachClient
     (toc - tic) % (1<<32) / scale / secs
   end
 
+  # Returns Hash describing RCS info.  The Hash contains two keys, +:app+ and
+  # +:lib+.  Each key maps to either a Hash which either has one key :time or
+  # the three keys +:type+, +:dirty+, and +:rev+.  If the Hash has the :time
+  # key, its value is a Fixnum of the 31 bit timestamp representing the time
+  # in seconds since the Unix epoch.  If the Hash has the three keys +:type+,
+  # +:dirty+, and +:rev+, their values are as described here:
+  #
+  #   :type  => :git or :svn indicating the revision control system
+  #
+  #   :dirty => true or false indicating whether the working copy had
+  #             uncommitted changes.
+  #
+  #   :rev   => String representing the decimal Subversion revision number or
+  #             the first 7 hex digits of the Git commit id.
+  #
+  # Normally the revision info is read from the RCS registers only one.  The
+  # +reload+ parameter can be passed as +true+ to force a reload (e.g. if the
+  # FPGA is reprogrammed with a new version of the ROACH2 F engine design).
+  #
+  # It could be argued that this method belongs in KATCP::RoachClient.
+  def rcs(reload=false)
+    @revinfo ||= {}
+    @revinfo[:app] ||= {}
+    @revinfo[:lib] ||= {}
+    if (reload || @revinfo[:app].empty?) && programmed? && respond_to?(:rcs_app)
+      app_info = rcs_app
+      if app_info & 0x8000_0000 != 0
+        # Timestamp
+        @revinfo[:app][:time ] = app_info & ~0x8000_0000
+      else
+        @revinfo[:app][:dirty] = (app_info & 0x1000_0000) != 0
+        if (app_info & 0x4000_0000) == 0
+          @revinfo[:app][:type ] = :git
+          @revinfo[:app][:rev  ] = '%07x' % (app_info & 0x0fff_ffff)
+        else
+          @revinfo[:app][:type ] = :svn
+          @revinfo[:app][:rev  ] = '%d'   % (app_info & 0x0fff_ffff)
+        end
+      end
+    end
+    if (reload || @revinfo[:lib].empty?) && programmed? && respond_to?(:rcs_lib)
+      lib_info = rcs_lib
+      if lib_info & 0x8000_0000 != 0
+        # Timestamp
+        @revinfo[:lib][:time ] = lib_info & ~0x8000_0000
+      else
+        @revinfo[:lib][:dirty] = (lib_info & 0x1000_0000) != 0
+        if (lib_info & 0x4000_0000) == 0
+          @revinfo[:lib][:type ] = :git
+          @revinfo[:lib][:rev  ] = '%07x' % (lib_info & 0x0fff_ffff)
+        else
+          @revinfo[:lib][:type ] = :svn
+          @revinfo[:lib][:rev  ] = '%d'   % (lib_info & 0x0fff_ffff)
+        end
+      end
+    end
+    @revinfo
+  end # #rcs
+  alias :scm :rcs
+
 end # class ADC16
 
 require 'adc16/version'
