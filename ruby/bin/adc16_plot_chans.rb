@@ -158,7 +158,7 @@ else
                          when 3..4; [2, 2]
                          when 5..6; [3, 2]
                          when 7,9; [3, 3]
-                         when 8; (OPTS[:type] == :histo) ? [4, 2] : [2, 4]
+                         when 8; [2, 4]
                          when 10..12; [4, 3]
                          else; [4, 4]
                          end
@@ -195,8 +195,8 @@ def plot_freq(data, chip_num, chan, opts={
   title2 = ''
   if OPTS[:stats]
     fdata = spec_amp.to_na
-    title2 = sprintf('min=%.3f mean=%.3f rms=%.3f max=%.3f',
-      fdata.min, fdata.mean, fdata.rms, fdata.max)
+    title2 = sprintf('max=%.3f @ bin %d of %d',
+      fdata.max, fdata.eq(fdata.max).where[0], fdata.length)
   end
 
   # Zero-out DC channel for plot
