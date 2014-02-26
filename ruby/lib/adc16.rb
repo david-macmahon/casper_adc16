@@ -361,6 +361,11 @@ class ADC16 < KATCP::RoachClient
       opts[0x42] = 0x60
       opts.delete(:phase_ddr)
     end
+
+    # Set register 0x50 to 0x30 (Vcom drive strength to max), unless the user
+    # specified it explicitly.
+    opts[0x50] = 0x30 unless opts.has_key? 0x50
+
     opts.each {|addr,val| setreg(addr, val) if (0x00..0x56) === addr}
     adc_power_cycle
     progdev @opts[:bof] if @opts[:bof]
