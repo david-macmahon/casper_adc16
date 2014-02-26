@@ -773,6 +773,20 @@ class ADC16 < KATCP::RoachClient
     sync_chips(opts)
   end
 
+  # Estimates the FPGA clock frequency from consecutive readings of
+  # sys_clkcounter.  Returns results in Hz by default; pass 1e6 for +scale+ to
+  # get MHz etc.  +secs+ is how long to wait between readings of
+  # sys_clkcounter.  Waiting more than one wrap around will give invalid
+  # results.
+  #
+  # It could be argued that this method belongs in KATCP::RoachClient.
+  def est_clk_freq(secs=1, scale=1)
+    tic = sys_clkcounter
+    sleep secs
+    toc = sys_clkcounter
+    (toc - tic) % (1<<32) / scale / secs
+  end
+
 end # class ADC16
 
 require 'adc16/version'
