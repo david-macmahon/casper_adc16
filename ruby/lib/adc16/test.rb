@@ -13,8 +13,9 @@ class ADC16Test < ADC16
     end
 
     def clear
-      @katcp_client.write("#{@device_stem}_0", 0, NArray.int(1024))
-      @katcp_client.write("#{@device_stem}_4", 0, NArray.int(1024))
+      @zeros_1k ||= NArray.int(1024)
+      @katcp_client.write("#{@device_stem}_0", 0, @zeros_1k)
+      @katcp_client.write("#{@device_stem}_4", 0, @zeros_1k)
     end
 
     # Returns a 256x8 NArray.  histo[nil,i] is a 256 element histogram of every
@@ -303,6 +304,77 @@ class ADC16Test < ADC16
     end
 
     chips.length == 1 ? out[0] : out
-  end
+  end # #snap_test
+
+  # Reads the histograms from the histogram devices of adc16_test design as
+  # specified by +chips+.  For each chip given in +chips+ (one or more of :a to
+  # :h, 0 to 7, 'a' to 'h', or 'A' to 'H'), an NArray is returned.  The
+  # dimensions of the returned NArray depend on the demux factor.
+  #
+  # If the demux factor is 1, then each returned NArray is 256x4 (one 256
+  # element histogram for each of the four distinct inputs per chip).
+  #
+  # If the demux factor is 2, then each returned NArray is 256x2 (one 256
+  # element histogram for each of the two distinct inputs per chip).
+  #
+  # If the demux factor is 4, then each returned NArray is 256 long (one 256
+  # element histogram for the single input per chip).
+  #
+  # The elements of each 256 element histogram are the counts of ADC samples
+  # ranging from -128 (index 0) to +127 (index 255).
+  def histo(*chips)
+    demux_mode = demux # Cache demux mode in local variable
+
+    histos = chips.map do |c|
+      chip_name = ADC16.chip_name(c).downcase
+      h1 = self.send("histo_#{chip_name}1").histo.sum(1)
+      h2 = self.send("histo_#{chip_name}2").histo.sum(1)
+      h3 = self.send("histo_#{chip_name}3").histo.sum(1)
+      h4 = self.send("histo_#{chip_name}4").histo.sum(1)
+      h = nil
+      case demux_mode
+      when DEMUX_BY_1
+        h = NArray.int(256,4)
+        h[nil,0] = h1
+        h[nil,1] = h2
+        h[nil,2] = h3
+        h[nil,3] = h4
+      when DEMUX_BY_2
+        h = NArray.int(256,2)
+        h[nil,0] = h1
+        h[nil,0].add!(h2)
+        h[nil,1] = h3
+        h[nil,1].add!(h4)
+      when DEMUX_BY_4
+        h = h1
+        h.add!(h2)
+        h.add!(h3)
+        h.add!(h4)
+      end
+      h
+    end
+    histos = histos[0] if histos.length == 1
+    histos
+  end # #histo
+
+  # Clears the histogram devices of the specified chip.
+  def clear_histo(*chips)
+    chips.each do |c|
+      chip_name = ADC16.chip_name(c).downcase
+      (1..4).each do |chan|
+        self.send("histo_#{chip_name}#{chan}").clear
+      end
+    end
+    self
+  end # #clear_histo
+
+  # Enables the the histogram devices for approximately +secs+ seconds, which
+  # can be a floating point number.
+  def run_histo(secs=1.0)
+    self.histo_en = 1
+    sleep secs
+    self.histo_en = 0
+    self
+  end # #run_histo
 
 end # class ADC16Test
