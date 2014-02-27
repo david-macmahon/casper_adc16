@@ -90,6 +90,16 @@ demux_mode = OPTS[:demux_mode]
 print "Gateware "
 if a.supports_demux?
   puts "supports demux modes (using demux by #{demux_mode})"
+
+  # Point all channels to input 2 for demux-by-4 mode unless the user is
+  # explicitly setting these registers from the command line.
+  if demux_mode == ADC16::DEMUX_BY_4  \
+  && !OPTS[:init_regs].has_key?(0x3a) \
+  && !OPTS[:init_regs].has_key?(0x3b)
+    puts "For demux by 4, will point all channels to input 2"
+    OPTS[:init_regs][0x3a] = 0x0404
+    OPTS[:init_regs][0x3b] = 0x0404
+  end
 else
   puts "does not support demux modes"
   if demux_mode != 1
@@ -100,7 +110,7 @@ end
 
 # Setup registers for demux_mode (if other than DEMUX_BY_1)
 if demux_mode != ADC16::DEMUX_BY_1
-  # See if user want to also preogram bits in reg 0x31
+  # See if user wants to program bits in reg 0x31
   reg31 = OPTS[:init_regs][0x31] || 0
   # Mask off any existing channel_num bits
   reg31 &= ~7
