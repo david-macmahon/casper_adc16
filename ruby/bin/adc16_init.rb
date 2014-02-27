@@ -5,11 +5,14 @@ require 'optparse'
 require 'adc16'
 
 OPTS = {
+  :gain => nil,
   :init_regs => {},
   :verbose => false,
   :num_iters => 1,
   :demux_mode => 1
 }
+
+GAINS = %w{ 1 1.25 2 2.5 4 5 8 10 12.5 16 20 25 32 50 }
 
 OP = OptionParser.new do |op|
   op.program_name = File.basename($0)
@@ -23,6 +26,9 @@ OP = OptionParser.new do |op|
   op.on('-d', '--demux=D', ['1', '2', '4'],
         "Set demux mode (1|2|4) [#{OPTS[:demux_mode]}]") do |o|
     OPTS[:demux_mode] = o.to_i
+  end
+  op.on('-g', '--gain=G', GAINS, "Set digital gain [1]") do |o|
+    OPTS[:gain] = GAINS.index(o)
   end
   op.on('-i', '--iters=N', Integer,
         "Number of snaps per tap [#{OPTS[:num_iters]}]") do |o|
@@ -149,6 +155,20 @@ end
 
 puts "Selecting analog inputs..."
 a.no_pattern
+
+if OPTS[:gain]
+  puts "Setting digital gain to #{GAINS[OPTS[:gain]]}..."
+  case demux_mode
+  when ADC16::DEMUX_BY_1
+    a.setreg(0x2a, OPTS[:gain] * 0x1111)
+  when ADC16::DEMUX_BY_2
+    a.setreg(0x2b, OPTS[:gain] * 0x0011)
+  when ADC16::DEMUX_BY_4
+    a.setreg(0x2b, OPTS[:gain] * 0x0100)
+  end
+else
+  puts 'Using default digital gain of 1...'
+end
 
 if demux_mode != ADC16::DEMUX_BY_1
   puts "Setting demux by #{demux_mode} mode..."
