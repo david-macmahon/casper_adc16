@@ -59,12 +59,12 @@ else
 end
 
 def dump_samples(data)
-  fmt = '%4d %4d %4d %4d'
+  ncols = data[0].shape[0]
+  fmt = ' %4d' * ncols
   tic = Time.now
   OPTS[:nsamps].times do |i|
     data.each_with_index do |d, j|
-      print ' ' if j > 0
-      printf(fmt, data[j][0,i], data[j][1,i], data[j][2,i], data[j][3,i])
+      printf(j > 0 ? fmt : fmt[1..-1], *data[j][nil,i])
     end
     puts
   end
@@ -73,9 +73,9 @@ def dump_samples(data)
 end
 
 def dump_rms(data)
-  fmt = (['%4.1f'] * (4*data.length)).join(' ') + "\n"
   rms = data.map {|na| na.rms(1).to_a}
   rms.flatten!
+  fmt = (['%4.1f'] * (rms.length)).join(' ') + "\n"
   printf(fmt, *rms)
 end
 
