@@ -128,7 +128,10 @@ require 'katcp'
 
 class ADC16 < KATCP::RoachClient
   DEVICE_TYPEMAP = superclass::DEVICE_TYPEMAP.merge({
-    :adc16_controller => :bram
+    :adc16_controller => :bram,
+    :adc16_wb_ram0 => :bram,
+    :adc16_wb_ram1 => :bram,
+    :adc16_wb_ram2 => :bram
   }) # :nodoc:
 
   def device_typemap # :nodoc:
@@ -145,7 +148,17 @@ class ADC16 < KATCP::RoachClient
   # Programs FPGA.  If bof is not given, any BOF file passed to "#new" will be
   # used.  Passing +nil+ will deprogram the FPGA.
   def progdev(bof=@opts[:bof])
+    puts 'Programming!'
     super(bof)
+  end
+  
+  RESET_BIT = 20 # :nodoc:
+
+  # Performs a software reset of the adc controller firmware.
+  def softrst
+    orig_reg_val = adc16_controller[1]
+    adc16_controller[1] = orig_reg_val | (1<<RESET_BIT)
+    adc16_controller[1] = orig_reg_val
   end
 
   # Eight bits of chip select values.  Bit 0 (the least significant bit)
@@ -368,7 +381,9 @@ class ADC16 < KATCP::RoachClient
 
     opts.each {|addr,val| setreg(addr, val) if (0x00..0x56) === addr}
     adc_power_cycle
-    progdev @opts[:bof] if @opts[:bof]
+    #progdev @opts[:bof] if @opts[:bof]
+    softrst
+    sleep(0.1)
   end
 
   # Set output data endian-ness and binary format of all ADCs selected by
@@ -475,10 +490,17 @@ class ADC16 < KATCP::RoachClient
     adc16_controller[1] = 0
     adc16_controller[1] = SNAP_REQ
     adc16_controller[1] = 0
-
+    
+    if ! listdev.grep('adc16_wb_ram').any?
+        use_wb_ram = 1
+    end
     out = chips.map do |chip|
       # Do snap
-      d = adc16_controller[1024*chip+1024,len]
+      if ! use_wb_ram
+          d = adc16_controller[1024*chip+1024,len]
+      else
+          d = send('adc16_wb_ram%d'%chip)[0, len]
+      end
       # Convert to NArray if len == 1
       if len == 1
         d -= (1<<32) if d >= (1<<31)
