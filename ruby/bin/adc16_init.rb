@@ -91,6 +91,16 @@ print "Gateware "
 if a.supports_demux?
   puts "supports demux modes (using demux by #{demux_mode})"
 
+  # Point channels to input 2 and 4 for demux-by-2 mode unless the user is
+  # explicitly setting these registers from the command line.
+  if demux_mode == ADC16::DEMUX_BY_2  \
+  && !OPTS[:init_regs].has_key?(0x3a) \
+  && !OPTS[:init_regs].has_key?(0x3b)
+    puts "For demux by 2, will point all channel 0 to input 0, channel 1 to input 2"
+    OPTS[:init_regs][0x3a] = 0x0202
+    OPTS[:init_regs][0x3b] = 0x0808
+  end
+
   # Point all channels to input 2 for demux-by-4 mode unless the user is
   # explicitly setting these registers from the command line.
   if demux_mode == ADC16::DEMUX_BY_4  \
