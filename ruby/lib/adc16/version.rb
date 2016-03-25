@@ -13,4 +13,4 @@
 class ADC16; end unless Module.const_defined? 'ADC16' # :nodoc:
 
 # Version string of ADC16 extension and gem
-ADC16::VERSION = "0.4.1"
+ADC16::VERSION = "0.5.0"

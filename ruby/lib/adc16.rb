@@ -437,16 +437,18 @@ class ADC16 < KATCP::RoachClient
     setreg(0x27, (bits&0xff) << 8)
   end
 
-  SNAP_REQ = (1<<16)    # :nodoc:
-  BITSLIP_SHIFT = 8     # :nodoc:
-  DELAY_TAP_MASK = 0x1F # :nodoc:
+  SNAP_REQ = (1<<16)     # :nodoc:
+  BITSLIP_SHIFT = 8      # :nodoc:
+  BITSLIP_LANE_SHIFT = 5 # :nodoc:
+  DELAY_TAP_MASK = 0x1F  # :nodoc:
 
   # Performs a bitslip operation on all SERDES blocks for chips given by
   # +*chips+.
-  def bitslip(*chips)
+  def bitslip(*chips, lane)
     val = 0
     chips.each do |c|
       val |= (1 << (BITSLIP_SHIFT+ADC16.chip_num(c)))
+      val |= (lane << BITSLIP_LANE_SHIFT)
     end
     adc16_controller[1] = 0
     adc16_controller[1] = val
@@ -614,7 +616,9 @@ class ADC16 < KATCP::RoachClient
     chan_counts_31 = test_tap(chip, 31, opts)
     if [chan_counts_0, chan_counts_31].flatten.index(0)
       puts "bitslipping chip #{ADC16.chip_name(chip)} to sample eye pattern better" if opts[:verbose]
-      bitslip(chip)
+        for lane in 0..7
+          bitslip(chip, lane)
+        end
     end
 
     # good_tap_ranges has four elements, one element for each channel;
@@ -699,14 +703,26 @@ class ADC16 < KATCP::RoachClient
 
     # Bit slip each ADC
     status = opts[:chips].map do |chip|
-      # Try up to 8 bitslip operations to get things right
-      8.times do
-        # Done if any (e.g. first) channel matches sync_expected
-        break if snap(chip, :n=>1)[0] == sync_expected
-        bitslip(chip)
+      puts "Scanning word boundaries of chip: #{chip}" if opts[:verbose]
+      for adc_chan in 0..3 # 4 adc channels
+        for lane in 0..1 # A/B lanes
+          for slip in 0..7
+            datasnap = snap(chip, :n=>2)
+            break if datasnap[adc_chan, lane] == sync_expected
+            bitslip(chip, 2*adc_chan + lane)
+          end
+        end
       end
       # Verify sucessful sync-up
-      snap(chip, :n=>1)[0] == sync_expected
+      readback = snap(chip, :n=>2)
+      aligned = true
+      puts "Alignment check (expected = #{sync_expected}): #{readback.inspect}" if opts[:verbose]
+      for adc_chan in 0..3
+        for lane in 0..1
+          aligned &= readback[adc_chan, lane] == sync_expected
+        end
+      end
+    aligned
     end
     status
   end
