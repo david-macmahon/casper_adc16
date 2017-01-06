@@ -1,11 +1,7 @@
 #!/usr/bin/env ruby
 
-require 'rubygems'
-
 require 'optparse'
-
 require 'narray'
-require 'adc16'
 
 begin
   require 'pgplot/plotter'
@@ -22,7 +18,8 @@ OPTS = {
   :nxy => nil,
   :verbose => false,
   :num_iters => 1,
-  :expected => 0x2a
+  :expected => 0x2a,
+  :protocol => ENV['ADC16_PROTOCOL'] || 'katcp'
 }
 
 OP = OptionParser.new do |op|
@@ -32,6 +29,9 @@ OP = OptionParser.new do |op|
   op.separator('')
   op.separator('Plot error counts for various ADC16 delay tap settings.')
   op.separator('Programs FPGA with BOF, if given.')
+  op.separator('')
+  op.separator('In addition to the -P option, the environment variable')
+  op.separator('"ADC16_PROTOCOL" can be set to the desired protocol.')
   op.separator('')
   op.separator 'Options:'
   op.on('-c', '--chips=C,C,...', Array, "Which chips to plot [all]") do |o|
@@ -52,6 +52,10 @@ OP = OptionParser.new do |op|
     end
     OPTS[:nxy] = o.map {|s| Integer(s) rescue 2}
   end
+  op.on('-P', '--protocol=PROTO', ['katcp', 'tapcp'],
+        "Select communication protocol [#{OPTS[:protocol]}]") do |o|
+    OPTS[:protocol] = o
+  end
   op.on('-v', '--[no-]verbose', "Display more info [#{OPTS[:verbose]}]") do
     OPTS[:verbose] = OPTS[:verbose] ? :very : true
   end
@@ -67,7 +71,9 @@ if ARGV.empty?
   exit 1
 end
 
-a = ADC16.new(ARGV[0])
+require "adc16/#{OPTS[:protocol]}"
+
+a = ADC16.new(:remote_host => ARGV[0], :verbose => true)
 
 # If BOF file given
 if ARGV[1]
@@ -79,7 +85,7 @@ if ARGV[1]
     exit 1
   end
   # Verify that given design is ADC16-based
-  if ! a.listdev.grep('adc16_controller').any?
+  if a.listdev.grep(/^adc16_controller/).empty?
     puts "Programmed #{ARGV[0]} with #{ARGV[1]}, but it is not an ADC16-based design."
     exit 1
   end
@@ -88,7 +94,7 @@ if ARGV[1]
   a.adc_init
 
 # Else BOF file not given, verify host is already programmed with ADC16 design.
-elsif ! (a.programmed? && a.listdev.grep('adc16_controller').any?)
+elsif ! (a.programmed? && a.listdev.grep(/^adc16_controller/).any?)
   puts "#{ARGV[0]} is not programmed with an ADC16 design."
   exit 1
 end
@@ -177,3 +183,5 @@ puts 'Selecting ADC analog inputs' if OPTS[:verbose]
 a.no_pattern
 
 plotter.close
+
+a.close

@@ -2,10 +2,10 @@
 
 require 'rubygems'
 require 'optparse'
-require 'adc16'
 
 OPTS = {
   :cal_status => false,
+  :protocol => ENV['ADC16_PROTOCOL'] || 'katcp'
 }
 
 OP = OptionParser.new do |op|
@@ -19,9 +19,16 @@ OP = OptionParser.new do |op|
   op.separator('which will briefly switch in test patterns then revert')
   op.separator('to analog inputs.  For cal status: "." = OK; "X" = BAD.')
   op.separator('')
+  op.separator('In addition to the -P option, the environment variable')
+  op.separator('"ADC16_PROTOCOL" can be set to the desired protocol.')
+  op.separator('')
   op.separator 'Options:'
   op.on('-c', '--[no-]cal', "Check SERDES calibration [#{OPTS[:cal_status]}]") do |o|
     OPTS[:cal_status] = o
+  end
+  op.on('-P', '--protocol=PROTO', ['katcp', 'tapcp'],
+        "Select communication protocol [#{OPTS[:protocol]}]") do |o|
+    OPTS[:protocol] = o
   end
   op.on_tail("-h", "--help", "Show this message") do
     puts op
@@ -35,8 +42,10 @@ if ARGV.empty?
   exit 1
 end
 
+require "adc16/#{OPTS[:protocol]}"
+
 ARGV.each do |host|
-  a = ADC16.new(host)
+  a = ADC16.new(:remote_host => host, :verbose => true)
 
   # Make sure FPGA is programmed
   if ! a.programmed?
@@ -45,7 +54,7 @@ ARGV.each do |host|
   end
 
   # Make sure it is an adc16-based design
-  if a.listdev.grep('adc16_controller').empty?
+  if a.listdev.grep(/^adc16_controller/).empty?
     puts "#{host}: ADC16 controller device not found"
     next
   end
@@ -105,4 +114,6 @@ ARGV.each do |host|
     # Select analog inputs
     a.no_pattern
   end
+
+  a.close
 end

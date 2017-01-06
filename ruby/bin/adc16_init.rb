@@ -1,15 +1,14 @@
 #!/usr/bin/env ruby
 
-require 'rubygems'
 require 'optparse'
-require 'adc16'
 
 OPTS = {
   :gain => nil,
   :init_regs => {},
   :verbose => false,
   :num_iters => 1,
-  :demux_mode => 1
+  :demux_mode => 1,
+  :protocol => ENV['ADC16_PROTOCOL'] || 'katcp'
 }
 
 GAINS = %w{ 1 1.25 2 2.5 4 5 8 10 12.5 16 20 25 32 50 }
@@ -17,10 +16,16 @@ GAINS = %w{ 1 1.25 2 2.5 4 5 8 10 12.5 16 20 25 32 50 }
 OP = OptionParser.new do |op|
   op.program_name = File.basename($0)
 
-  op.banner = "Usage: #{op.program_name} [OPTIONS] HOSTNAME BOF"
+  op.banner = "Usage: #{op.program_name} [-P katcp] [OPTIONS] HOSTNAME BOF\n" +
+              "       #{op.program_name} [-P tapcp] [OPTIONS] HOSTNAME"
   op.separator('')
-  op.separator('Programs HOSTNAME with ADC16-based design BOF and then calibrates')
-  op.separator('the serdes receivers.')
+  op.separator('In katcp mode: Programs HOSTNAME with ADC16-based design BOF')
+  op.separator('               and then calibrates the serdes receivers.')
+  op.separator('')
+  op.separator('In tapcp mode: Just calibrates the serdes receivers.')
+  op.separator('')
+  op.separator('In addition to the -P option, the environment variable')
+  op.separator('"ADC16_PROTOCOL" can be set to the desired protocol.')
   op.separator('')
   op.separator 'Options:'
   op.on('-d', '--demux=D', ['1', '2', '4'],
@@ -33,6 +38,10 @@ OP = OptionParser.new do |op|
   op.on('-i', '--iters=N', Integer,
         "Number of snaps per tap [#{OPTS[:num_iters]}]") do |o|
     OPTS[:num_iters] = o
+  end
+  op.on('-P', '--protocol=PROTO', ['katcp', 'tapcp'],
+        "Select communication protocol [#{OPTS[:protocol]}]") do |o|
+    OPTS[:protocol] = o
   end
   op.on('-r', '--reg=R1=V1[,R2=V2...]', Array,
         'Register addr=value pairs to set') do |o|
@@ -52,30 +61,37 @@ OP = OptionParser.new do |op|
 end
 OP.parse!
 
-if ARGV.length != 2
-  STDERR.puts "Need 2 non-option arguments, but #{ARGV.length} given."
+nargs = OPTS[:protocol] == 'katcp' ? 2 : 1
+
+if ARGV.length != nargs
+  STDERR.puts "Need #{nargs} non-option arguments, but #{ARGV.length} given."
   STDERR.puts
   STDERR.puts OP
   exit 1
 end
 
+require "adc16/#{OPTS[:protocol]}"
+
 host = ARGV[0]
 bof  = ARGV[1]
 
 puts "Connecting to #{host}..."
-a = ADC16.new(host, :bof => bof)
+a = ADC16.new(:remote_host => host, :bof => bof, :verbose => true)
 
-puts "Programming #{host} with #{bof}..."
-a.progdev(bof)
+if bof
+  puts "Programming #{host} with #{bof}..."
+  a.progdev(bof)
 
-# Verify that programming succeeded
-if ! a.programmed?
-  puts "error programming #{host} with #{bof}"
-  exit 1
+  # Verify that programming succeeded
+  if ! a.programmed?
+    puts "error programming #{host} with #{bof}"
+    exit 1
+  end
 end
+
 # Verify that given design is ADC16-based
-if ! a.listdev.grep('adc16_controller').any?
-  puts "Programmed #{host} with #{bof}, but it is not an ADC16-based design."
+if a.listdev.grep(/^adc16_controller/).empty?
+  puts "Host #{host} is not running an ADC16-based design."
   exit 1
 end
 
@@ -83,6 +99,7 @@ end
 zdrev = a.zdok_rev
 r2rev = a.roach2_rev
 nadcs = a.num_adcs
+# TODO Fix this hard-coded "ROACH2"
 puts "Design built for ROACH2 rev#{r2rev} with #{nadcs} ADCs (ZDOK rev#{zdrev})"
 
 # Check demux mode support and request
@@ -194,5 +211,7 @@ if demux_mode != ADC16::DEMUX_BY_1
   puts "Setting demux by #{demux_mode} mode..."
   a.demux = demux_mode
 end
+
+a.close
 
 puts "Done!"

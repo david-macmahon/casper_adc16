@@ -1,14 +1,13 @@
 #!/usr/bin/env ruby
 
-require 'rubygems'
 require 'optparse'
-require 'adc16'
 
 OPTS = {
   :nsamps => 1024,
   :rms => false,
   :test => false,
-  :verbose => false
+  :verbose => false,
+  :protocol => ENV['ADC16_PROTOCOL'] || 'katcp'
 }
 
 OP = OptionParser.new do |op|
@@ -19,6 +18,9 @@ OP = OptionParser.new do |op|
   op.separator('Dump samples from ADC16 based design.')
   op.separator('Lengths between 1025 and 65536 requires the adc16_test design.')
   op.separator('')
+  op.separator('In addition to the -P option, the environment variable')
+  op.separator('"ADC16_PROTOCOL" can be set to the desired protocol.')
+  op.separator('')
   op.separator 'Options:'
   op.on('-l', '--length=N', Integer, "Number of samples to dump per channel (1-65536) [#{OPTS[:nsamps]}]") do |o|
     if (1025..65536) === o
@@ -28,6 +30,10 @@ OP = OptionParser.new do |op|
       exit 1
     end
     OPTS[:nsamps] = o
+  end
+  op.on('-P', '--protocol=PROTO', ['katcp', 'tapcp'],
+        "Select communication protocol [#{OPTS[:protocol]}]") do |o|
+    OPTS[:protocol] = o
   end
   op.on('-r', '--rms', "Output RMS of each channel instead of raw samples [#{OPTS[:rms]}]") do |o|
     OPTS[:rms] = o
@@ -48,14 +54,19 @@ if ARGV.empty?
 end
 
 if OPTS[:test]
+  if OPTS[:protocol] != 'katcp'
+    STDERR.puts "adc16_test requires katcp protocol"
+    exit 1
+  end
   require 'adc16/test'
   adc16_class = ADC16Test
   snap_method = :snap_test
-  device_check = 'snap_a_bram'
+  device_check = /^snap_a_bram/
 else
+  require "adc16/#{OPTS[:protocol]}"
   adc16_class = ADC16
   snap_method = :snap
-  device_check = 'adc16_controller'
+  device_check = /^adc16_controller/
 end
 
 def dump_samples(data)
@@ -79,7 +90,7 @@ def dump_rms(data)
   printf(fmt, *rms)
 end
 
-a = adc16_class.new(ARGV[0])
+a = adc16_class.new(:remote_host => ARGV[0], :verbose => true)
 
 # Verify suitability of current design
 if !a.programmed?
@@ -102,3 +113,5 @@ if OPTS[:rms]
 else
   dump_samples(data)
 end
+
+a.close

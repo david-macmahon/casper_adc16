@@ -1,8 +1,6 @@
 #!/usr/bin/env ruby
 
-require 'rubygems'
 require 'optparse'
-require 'adc16'
 
 begin
   require 'pgplot/plotter'
@@ -21,7 +19,8 @@ OPTS = {
   :nsamps => 100,
   :stats => true,
   :test => false,
-  :type => :time
+  :type => :time,
+  :protocol => ENV['ADC16_PROTOCOL'] || 'katcp'
 }
 
 OP = OptionParser.new do |op|
@@ -31,6 +30,9 @@ OP = OptionParser.new do |op|
   op.separator('')
   op.separator('Plot time series ADC16 channels.')
   op.separator('Lengths between 1025 and 65536 requires the adc16_test design.')
+  op.separator('')
+  op.separator('In addition to the -P option, the environment variable')
+  op.separator('"ADC16_PROTOCOL" can be set to the desired protocol.')
   op.separator('')
   op.separator 'Options:'
   op.on('-c', '--chans=CN,CN,...', Array, "Which channels to plot [all]") do |o|
@@ -60,6 +62,10 @@ OP = OptionParser.new do |op|
     end
     OPTS[:nxy] = o.map {|s| Integer(s) rescue 2}
   end
+  op.on('-P', '--protocol=PROTO', ['katcp', 'tapcp'],
+        "Select communication protocol [#{OPTS[:protocol]}]") do |o|
+    OPTS[:protocol] = o
+  end
   op.on('-s', '--[no-]stats', "Include stats in plot titles [#{OPTS[:stats]}]") do |o|
     OPTS[:stats] = o
   end
@@ -79,14 +85,19 @@ if ARGV.empty?
 end
 
 if OPTS[:test]
+  if OPTS[:protocol] != 'katcp'
+    STDERR.puts "adc16_test requires katcp protocol"
+    exit 1
+  end
   require 'adc16/test'
   adc16_class = ADC16Test
   snap_method = :snap_test
-  device_check = 'snap_a_bram'
+  device_check = /^snap_a_bram/
 else
+  require "adc16/#{OPTS[:protocol]}"
   adc16_class = ADC16
   snap_method = :snap
-  device_check = 'adc16_controller'
+  device_check = /^adc16_controller/
 end
 
 # Define
@@ -111,7 +122,7 @@ rescue LoadError
   OPTS[:type] = :time
 end
 
-a = adc16_class.new(ARGV[0])
+a = adc16_class.new(:remote_host => ARGV[0], :verbose => true)
 
 # Verify suitability of current design
 if !a.programmed?
@@ -297,3 +308,5 @@ data.each_with_index do |chip_data, chips_idx|
 end
 
 plot.close
+
+a.close

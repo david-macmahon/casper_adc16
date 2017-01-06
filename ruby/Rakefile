@@ -10,12 +10,14 @@ spec = Gem::Specification.new do |s|
   s.version = ADC16::VERSION
   s.summary = 'CASPER ADC16 library for Ruby'
   s.description = <<-EOD
-    Provides CASPER ADC16 client library for Ruby.  Uses KATCP (the Karoo Array
-    Telescope Control Protocol) to communicate with devices.
+    Provides CASPER ADC16 client library for Ruby.  Uses either KATCP (the
+    Karoo Array Telescope Control Protocol) or TAPCP (the TFTP Access for
+    Program and Control Protocol) to communicate with devices.
     EOD
   #s.platform = Gem::Platform::Ruby
   s.required_ruby_version = '>= 1.8.6'
   s.add_dependency('katcp', '~> 0.1.10')
+  #s.add_dependency('taccp', '~> 0.1.0')
 
   # About
   s.authors = 'David MacMahon'
@@ -31,6 +33,9 @@ spec = Gem::Specification.new do |s|
     bin/adc16_plot_taps.rb
     bin/adc16_status.rb
     lib/adc16.rb
+    lib/adc16/adc16.rb
+    lib/adc16/katcp.rb
+    lib/adc16/tapcp.rb
     lib/adc16/test.rb
     lib/adc16/version.rb
   ]

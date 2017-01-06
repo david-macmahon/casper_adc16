@@ -1,4 +1,4 @@
-require 'adc16'
+require 'adc16/katcp'
 
 # Class for communicating with snap and trig blocks of adc16_test model.
 class ADC16Test < ADC16
