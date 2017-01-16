@@ -76,7 +76,7 @@ host = ARGV[0]
 bof  = ARGV[1]
 
 puts "Connecting to #{host}..."
-a = ADC16.new(:remote_host => host, :bof => bof, :verbose => true)
+a = ADC16.new(:remote_host => host, :bof => bof, :verbose => OPTS[:verbose])
 
 if bof
   puts "Programming #{host} with #{bof}..."
