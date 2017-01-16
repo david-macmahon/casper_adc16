@@ -45,7 +45,7 @@ end
 require "adc16/#{OPTS[:protocol]}"
 
 ARGV.each do |host|
-  a = ADC16.new(:remote_host => host, :verbose => true)
+  a = ADC16.new(:remote_host => host)
 
   # Make sure FPGA is programmed
   if ! a.programmed?
